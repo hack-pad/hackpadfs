@@ -1,17 +1,22 @@
 package hackpadfs
 
 import (
-	"io/fs"
+	"errors"
+	gofs "io/fs"
+	"syscall"
 	"time"
 )
 
-type FS interface {
-	Open(name string) (File, error)
-}
+type FS = gofs.FS
 
 type OpenFileFS interface {
 	FS
 	OpenFile(name string, flag int, perm FileMode) (File, error)
+}
+
+type MkdirFS interface {
+	FS
+	Mkdir(name string, perm FileMode) error
 }
 
 type MkdirAllFS interface {
@@ -39,6 +44,16 @@ type StatFS interface {
 	Stat(name string) (FileInfo, error)
 }
 
+type LstatFS interface {
+	FS
+	Lstat(name string) (FileInfo, error)
+}
+
+type LstatOrStatFS interface {
+	FS
+	LstatOrStat(name string) (FileInfo, error)
+}
+
 type ChmodFS interface {
 	FS
 	Chmod(name string, mode FileMode) error
@@ -64,20 +79,153 @@ type ReadFileFS interface {
 	ReadFile(name string) ([]byte, error)
 }
 
-func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error)
-func Create(fs FS, name string) (File, error)
-func Mkdir(fs FS, name string, perm FileMode) error
-func MkdirAll(fs FS, path string, perm FileMode) error
-func Remove(fs FS, name string) error
-func RemoveAll(fs FS, path string) error
-func Rename(fs FS, oldname, newname string) error
-func Stat(fs FS, name string) (FileInfo, error)
-func Chmod(fs FS, name string, mode FileMode) error
-func Chown(fs FS, name string, uid, gid int) error
-func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error
-func ReadFSDir(fs FS, name string) ([]DirEntry, error)
-func ReadFSFile(fs FS, name string) ([]byte, error)
+type WalkDirFunc = gofs.WalkDirFunc
 
-type WalkDirFunc = fs.WalkDirFunc
+func WalkDir(fs FS, root string, fn WalkDirFunc) error {
+	return gofs.WalkDir(fs, root, fn)
+}
 
-func WalkDir(fs FS, root string, fn WalkDirFunc) error
+func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
+	if flag == syscall.O_RDONLY {
+		return fs.Open(name)
+	}
+	if fs, ok := fs.(OpenFileFS); ok {
+		return fs.OpenFile(name, flag, perm)
+	}
+	return nil, ErrUnsupported
+}
+
+func Create(fs FS, name string) (File, error) {
+	return OpenFile(fs, name, syscall.O_RDWR|syscall.O_CREAT|syscall.O_TRUNC, 0666)
+}
+
+func Mkdir(fs FS, name string, perm FileMode) error {
+	if fs, ok := fs.(MkdirFS); ok {
+		return fs.Mkdir(name, perm)
+	}
+	file, err := OpenFile(fs, name, syscall.O_WRONLY|syscall.O_CREAT|syscall.O_EXCL, perm|gofs.ModeDir)
+	if err != nil {
+		return &PathError{Op: "mkdir", Path: name, Err: err}
+	}
+	defer file.Close()
+	return nil
+}
+
+func MkdirAll(fs FS, path string, perm FileMode) error {
+	if fs, ok := fs.(MkdirAllFS); ok {
+		return fs.MkdirAll(path, perm)
+	}
+	if !gofs.ValidPath(path) {
+		return &PathError{Op: "mkdirall", Path: path, Err: ErrInvalid}
+	}
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			err := Mkdir(fs, path[:i], perm)
+			if err != nil && !errors.Is(err, ErrExist) {
+				return err
+			}
+		}
+	}
+	return Mkdir(fs, path, perm)
+}
+
+func Remove(fs FS, name string) error {
+	if fs, ok := fs.(RemoveFS); ok {
+		return fs.Remove(name)
+	}
+	return &PathError{Op: "remove", Path: name, Err: ErrUnsupported}
+}
+
+func RemoveAll(fs FS, path string) error {
+	if fs, ok := fs.(RemoveAllFS); ok {
+		return fs.RemoveAll(path)
+	}
+	return &PathError{Op: "removeall", Path: path, Err: ErrUnsupported}
+}
+
+func Rename(fs FS, oldName, newName string) error {
+	if fs, ok := fs.(RenameFS); ok {
+		return fs.Rename(oldName, newName)
+	}
+	return &LinkError{Op: "rename", Old: oldName, New: newName, Err: ErrUnsupported}
+}
+
+func Stat(fs FS, name string) (FileInfo, error) {
+	if fs, ok := fs.(StatFS); ok {
+		return fs.Stat(name)
+	}
+	file, err := fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return file.Stat()
+}
+
+func Lstat(fs FS, name string) (FileInfo, error) {
+	if fs, ok := fs.(LstatFS); ok {
+		return fs.Lstat(name)
+	}
+	return nil, &PathError{Op: "lstat", Path: name, Err: ErrUnsupported}
+}
+
+func LstatOrStat(fs FS, name string) (FileInfo, error) {
+	if fs, ok := fs.(LstatOrStatFS); ok {
+		return fs.LstatOrStat(name)
+	}
+	info, err := Lstat(fs, name)
+	if errors.Is(err, ErrUnsupported) {
+		info, err = Stat(fs, name)
+	}
+	return info, err
+}
+
+func Chmod(fs FS, name string, mode FileMode) error {
+	if fs, ok := fs.(ChmodFS); ok {
+		return fs.Chmod(name, mode)
+	}
+	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	if err != nil {
+		return &PathError{Op: "chmod", Path: name, Err: err}
+	}
+	defer file.Close()
+	return ChmodFile(file, mode)
+}
+
+func Chown(fs FS, name string, uid, gid int) error {
+	if fs, ok := fs.(ChownFS); ok {
+		return fs.Chown(name, uid, gid)
+	}
+	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	if err != nil {
+		return &PathError{Op: "chown", Path: name, Err: err}
+	}
+	defer file.Close()
+	return ChownFile(file, uid, gid)
+}
+
+func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
+	if fs, ok := fs.(ChtimesFS); ok {
+		return fs.Chtimes(name, atime, mtime)
+	}
+	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	if err != nil {
+		return &PathError{Op: "chtimes", Path: name, Err: err}
+	}
+	defer file.Close()
+	return ChtimesFile(file, atime, mtime)
+}
+
+func ReadDir(fs FS, name string) ([]DirEntry, error) {
+	if fs, ok := fs.(ReadDirFS); ok {
+		return fs.ReadDir(name)
+	}
+	return gofs.ReadDir(fs, name)
+}
+
+func ReadFile(fs FS, name string) ([]byte, error) {
+	if fs, ok := fs.(ReadFileFS); ok {
+		return fs.ReadFile(name)
+	}
+	return gofs.ReadFile(fs, name)
+}
