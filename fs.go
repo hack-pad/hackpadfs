@@ -9,9 +9,19 @@ import (
 
 type FS = gofs.FS
 
+type SubFS interface {
+	FS
+	Sub(dir string) (FS, error)
+}
+
 type OpenFileFS interface {
 	FS
 	OpenFile(name string, flag int, perm FileMode) (File, error)
+}
+
+type CreateFS interface {
+	FS
+	Create(name string) (File, error)
 }
 
 type MkdirFS interface {
@@ -79,10 +89,21 @@ type ReadFileFS interface {
 	ReadFile(name string) ([]byte, error)
 }
 
+func ValidPath(path string) bool {
+	return gofs.ValidPath(path)
+}
+
 type WalkDirFunc = gofs.WalkDirFunc
 
 func WalkDir(fs FS, root string, fn WalkDirFunc) error {
 	return gofs.WalkDir(fs, root, fn)
+}
+
+func Sub(fs FS, dir string) (FS, error) {
+	if fs, ok := fs.(SubFS); ok {
+		return fs.Sub(dir)
+	}
+	return gofs.Sub(fs, dir)
 }
 
 func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
@@ -96,6 +117,9 @@ func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
 }
 
 func Create(fs FS, name string) (File, error) {
+	if fs, ok := fs.(CreateFS); ok {
+		return fs.Create(name)
+	}
 	return OpenFile(fs, name, syscall.O_RDWR|syscall.O_CREAT|syscall.O_TRUNC, 0666)
 }
 

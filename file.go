@@ -8,6 +8,25 @@ import (
 
 type FileMode = gofs.FileMode
 
+const (
+	ModeDir        = gofs.ModeDir
+	ModeAppend     = gofs.ModeAppend
+	ModeExclusive  = gofs.ModeExclusive
+	ModeTemporary  = gofs.ModeTemporary
+	ModeSymlink    = gofs.ModeSymlink
+	ModeDevice     = gofs.ModeDevice
+	ModeNamedPipe  = gofs.ModeNamedPipe
+	ModeSocket     = gofs.ModeSocket
+	ModeSetuid     = gofs.ModeSetuid
+	ModeSetgid     = gofs.ModeSetgid
+	ModeCharDevice = gofs.ModeCharDevice
+	ModeSticky     = gofs.ModeSticky
+	ModeIrregular  = gofs.ModeIrregular
+
+	ModeType = gofs.ModeType
+	ModePerm = gofs.ModePerm
+)
+
 type FileInfo = gofs.FileInfo
 
 type DirEntry = gofs.DirEntry
