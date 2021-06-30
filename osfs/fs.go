@@ -36,10 +36,6 @@ func (fs *FS) rootedPath(op, name string) (string, *hackpadfs.PathError) {
 	return filepath.FromSlash(name), nil
 }
 
-func (fs *FS) wrapFileRelPathErr(file hackpadfs.File, err error) (hackpadfs.File, error) {
-	return file, fs.wrapRelPathErr(err)
-}
-
 // wrapRelPathErr restores path names to the caller's path names, without the root path prefix
 func (fs *FS) wrapRelPathErr(err error) error {
 	switch e := err.(type) {
@@ -48,37 +44,42 @@ func (fs *FS) wrapRelPathErr(err error) error {
 		errCopy.Path = strings.TrimPrefix(errCopy.Path, path.Join("/", fs.root))
 		errCopy.Path = strings.TrimPrefix(errCopy.Path, "/")
 		err = &errCopy
-	case *hackpadfs.LinkError:
-		errCopy := *e
+	case *os.LinkError:
+		errCopy := &hackpadfs.LinkError{Op: e.Op, Old: e.Old, New: e.New, Err: e.Err}
 		errCopy.Old = strings.TrimPrefix(errCopy.Old, path.Join("/", fs.root))
+		errCopy.Old = strings.TrimPrefix(errCopy.Old, "/")
+		errCopy.New = strings.TrimPrefix(errCopy.New, path.Join("/", fs.root))
 		errCopy.New = strings.TrimPrefix(errCopy.New, "/")
-		err = &errCopy
+		err = errCopy
 	}
 	return err
 }
 
 func (fs *FS) Open(name string) (hackpadfs.File, error) {
-	name, err := fs.rootedPath("open", name)
-	if err != nil {
-		return nil, err
+	name, pathErr := fs.rootedPath("open", name)
+	if pathErr != nil {
+		return nil, pathErr
 	}
-	return fs.wrapFileRelPathErr(os.Open(name))
+	file, err := os.Open(name)
+	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
 func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (hackpadfs.File, error) {
-	name, err := fs.rootedPath("open", name)
-	if err != nil {
-		return nil, err
+	name, pathErr := fs.rootedPath("open", name)
+	if pathErr != nil {
+		return nil, pathErr
 	}
-	return fs.wrapFileRelPathErr(os.OpenFile(name, flag, perm))
+	file, err := os.OpenFile(name, flag, perm)
+	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
 func (fs *FS) Create(name string) (hackpadfs.File, error) {
-	name, err := fs.rootedPath("create", name)
-	if err != nil {
-		return nil, err
+	name, pathErr := fs.rootedPath("create", name)
+	if pathErr != nil {
+		return nil, pathErr
 	}
-	return fs.wrapFileRelPathErr(os.Create(name))
+	file, err := os.Create(name)
+	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
 func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
@@ -183,4 +184,16 @@ func (fs *FS) ReadFile(name string) ([]byte, error) {
 	}
 	contents, err := os.ReadFile(name)
 	return contents, fs.wrapRelPathErr(err)
+}
+
+func (fs *FS) Symlink(oldname, newname string) error {
+	oldname, pathErr := fs.rootedPath("symlink", oldname)
+	if pathErr != nil {
+		return &hackpadfs.LinkError{Op: "symlink", Old: oldname, New: newname, Err: pathErr.Err}
+	}
+	newname, pathErr = fs.rootedPath("symlink", newname)
+	if pathErr != nil {
+		return &hackpadfs.LinkError{Op: "symlink", Old: oldname, New: newname, Err: pathErr.Err}
+	}
+	return fs.wrapRelPathErr(os.Symlink(oldname, newname))
 }

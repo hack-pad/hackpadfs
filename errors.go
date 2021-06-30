@@ -2,12 +2,11 @@ package hackpadfs
 
 import (
 	"io/fs"
-	"os"
 	"syscall"
 )
 
 var (
-	ErrInvalid     = fs.ErrInvalid
+	ErrInvalid     = syscall.EINVAL // TODO update to fs.ErrInvalid, once errors.Is supports it
 	ErrPermission  = fs.ErrPermission
 	ErrExist       = fs.ErrExist
 	ErrNotExist    = fs.ErrNotExist
@@ -21,4 +20,17 @@ var (
 
 type PathError = fs.PathError
 
-type LinkError = os.LinkError
+type LinkError struct {
+	Op  string
+	Old string
+	New string
+	Err error
+}
+
+func (e *LinkError) Error() string {
+	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
+}
+
+func (e *LinkError) Unwrap() error {
+	return e.Err
+}

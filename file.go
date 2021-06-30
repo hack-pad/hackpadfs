@@ -3,7 +3,20 @@ package hackpadfs
 import (
 	"io"
 	gofs "io/fs"
+	"syscall"
 	"time"
+)
+
+const (
+	FlagReadOnly  int = syscall.O_RDONLY
+	FlagWriteOnly int = syscall.O_WRONLY
+	FlagReadWrite int = syscall.O_RDWR
+
+	FlagAppend    int = syscall.O_APPEND
+	FlagCreate    int = syscall.O_CREAT
+	FlagExclusive int = syscall.O_EXCL
+	FlagSync      int = syscall.O_SYNC
+	FlagTruncate  int = syscall.O_TRUNC
 )
 
 type FileMode = gofs.FileMode
@@ -36,6 +49,16 @@ type File = gofs.File
 type ReadWriterFile interface {
 	File
 	io.Writer
+}
+
+type ReaderAtFile interface {
+	File
+	io.ReaderAt
+}
+
+type WriterAtFile interface {
+	File
+	io.WriterAt
 }
 
 type DirReaderFile interface {
@@ -106,6 +129,17 @@ func ChtimesFile(file File, atime, mtime time.Time) error {
 	return &PathError{Op: "chtimes", Path: info.Name(), Err: ErrUnsupported}
 }
 
+func ReadAtFile(file File, p []byte, off int64) (n int, err error) {
+	if file, ok := file.(ReaderAtFile); ok {
+		return file.ReadAt(p, off)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return 0, &PathError{Op: "readat", Path: info.Name(), Err: ErrUnsupported}
+}
+
 func WriteFile(file File, p []byte) (n int, err error) {
 	if file, ok := file.(ReadWriterFile); ok {
 		return file.Write(p)
@@ -115,6 +149,17 @@ func WriteFile(file File, p []byte) (n int, err error) {
 		return 0, err
 	}
 	return 0, &PathError{Op: "write", Path: info.Name(), Err: ErrUnsupported}
+}
+
+func WriteAtFile(file File, p []byte, off int64) (n int, err error) {
+	if file, ok := file.(WriterAtFile); ok {
+		return file.WriteAt(p, off)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return 0, &PathError{Op: "writeat", Path: info.Name(), Err: ErrUnsupported}
 }
 
 func ReadDirFile(file File, n int) ([]DirEntry, error) {

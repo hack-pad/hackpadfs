@@ -31,6 +31,7 @@ type SetupFS interface {
 	hackpadfs.OpenFileFS
 	hackpadfs.ChownFS
 	hackpadfs.ChtimesFS
+	hackpadfs.SymlinkFS
 }
 
 type SetupFSFunc func(tb testing.TB) (SetupFS, func() hackpadfs.FS)
@@ -108,9 +109,28 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("base fs.Mkdir", TestBaseMkdir).Run(tb, options)
 	newSubtask("base fs.Chmod", TestBaseChmod).Run(tb, options)
 	newSubtask("base fs.Chtimes", TestBaseChtimes).Run(tb, options)
+	newSubtask("base file.Close", TestFileClose).Run(tb, options)
 
 	newSubtask("fs.Create", TestCreate).Run(tb, options)
 	newSubtask("fs.Mkdir", TestMkdir).Run(tb, options)
 	newSubtask("fs.MkdirAll", TestMkdirAll).Run(tb, options)
 	newSubtask("fs.Open", TestOpen).Run(tb, options)
+	newSubtask("fs.OpenFile", TestOpenFile).Run(tb, options)
+	newSubtask("fs.Remove", TestRemove).Run(tb, options)
+	newSubtask("fs.RemoveAll", TestRemoveAll).Run(tb, options)
+	newSubtask("fs.Rename", TestRename).Run(tb, options)
+	newSubtask("fs.Stat", TestStat).Run(tb, options)
+	newSubtask("fs.Chmod", TestChmod).Run(tb, options)
+	newSubtask("fs.Chtimes", TestChtimes).Run(tb, options)
+	// TODO Symlink
+
+	newSubtask("file.Read", TestFileRead).Run(tb, options)
+	newSubtask("file.ReadAt", TestFileReadAt).Run(tb, options)
+	newSubtask("file.Seek", TestFileSeek).Run(tb, options)
+	newSubtask("file.Write", TestFileWrite).Run(tb, options)
+	newSubtask("file.WriteAt", TestFileWriteAt).Run(tb, options)
+	newSubtask("file.ReadDir", TestFileReadDir).Run(tb, options)
+	newSubtask("file.Stat", TestFileStat).Run(tb, options)
+	newSubtask("file.Sync", TestFileSync).Run(tb, options)
+	newSubtask("file.Truncate", TestFileTruncate).Run(tb, options)
 }

@@ -172,3 +172,13 @@ func IsType(tb testing.TB, expected, actual interface{}) bool {
 	actualType := reflect.TypeOf(actual)
 	return Equal(tb, expectedType, actualType)
 }
+
+// Prefix asserts actual starts with expected
+func Prefix(tb testing.TB, expected, actual string) bool {
+	tb.Helper()
+	if !strings.HasPrefix(actual, expected) {
+		tb.Errorf("Actual is not prefixed with expected:\nExpected: %s\nActual:   %s", expected, actual)
+		return false
+	}
+	return true
+}

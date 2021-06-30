@@ -3,7 +3,6 @@ package hackpadfs
 import (
 	"errors"
 	gofs "io/fs"
-	"syscall"
 	"time"
 )
 
@@ -89,6 +88,11 @@ type ReadFileFS interface {
 	ReadFile(name string) ([]byte, error)
 }
 
+type SymlinkFS interface {
+	FS
+	Symlink(oldname, newname string) error
+}
+
 func ValidPath(path string) bool {
 	return gofs.ValidPath(path)
 }
@@ -107,7 +111,7 @@ func Sub(fs FS, dir string) (FS, error) {
 }
 
 func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
-	if flag == syscall.O_RDONLY {
+	if flag == FlagReadOnly {
 		return fs.Open(name)
 	}
 	if fs, ok := fs.(OpenFileFS); ok {
@@ -120,14 +124,14 @@ func Create(fs FS, name string) (File, error) {
 	if fs, ok := fs.(CreateFS); ok {
 		return fs.Create(name)
 	}
-	return OpenFile(fs, name, syscall.O_RDWR|syscall.O_CREAT|syscall.O_TRUNC, 0666)
+	return OpenFile(fs, name, FlagReadWrite|FlagCreate|FlagTruncate, 0666)
 }
 
 func Mkdir(fs FS, name string, perm FileMode) error {
 	if fs, ok := fs.(MkdirFS); ok {
 		return fs.Mkdir(name, perm)
 	}
-	file, err := OpenFile(fs, name, syscall.O_WRONLY|syscall.O_CREAT|syscall.O_EXCL, perm|gofs.ModeDir)
+	file, err := OpenFile(fs, name, FlagReadOnly|FlagCreate|FlagExclusive, perm|gofs.ModeDir)
 	if err != nil {
 		return &PathError{Op: "mkdir", Path: name, Err: err}
 	}
@@ -208,7 +212,7 @@ func Chmod(fs FS, name string, mode FileMode) error {
 	if fs, ok := fs.(ChmodFS); ok {
 		return fs.Chmod(name, mode)
 	}
-	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
 		return &PathError{Op: "chmod", Path: name, Err: err}
 	}
@@ -220,7 +224,7 @@ func Chown(fs FS, name string, uid, gid int) error {
 	if fs, ok := fs.(ChownFS); ok {
 		return fs.Chown(name, uid, gid)
 	}
-	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
 		return &PathError{Op: "chown", Path: name, Err: err}
 	}
@@ -232,7 +236,7 @@ func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
 	if fs, ok := fs.(ChtimesFS); ok {
 		return fs.Chtimes(name, atime, mtime)
 	}
-	file, err := OpenFile(fs, name, syscall.O_WRONLY, 0)
+	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
 		return &PathError{Op: "chtimes", Path: name, Err: err}
 	}
@@ -252,4 +256,11 @@ func ReadFile(fs FS, name string) ([]byte, error) {
 		return fs.ReadFile(name)
 	}
 	return gofs.ReadFile(fs, name)
+}
+
+func Symlink(fs FS, oldname, newname string) error {
+	if fs, ok := fs.(SymlinkFS); ok {
+		return fs.Symlink(oldname, newname)
+	}
+	return &LinkError{Op: "symlink", Old: oldname, New: newname, Err: ErrUnsupported}
 }

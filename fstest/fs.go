@@ -1,7 +1,10 @@
 package fstest
 
 import (
+	// Avoid importing "os" package in fstest if we can, since not all environments may be able to support it.
+	// Not to mention it should compile a little faster. :)
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -77,11 +80,16 @@ type quickInfo struct {
 }
 
 func asQuickInfo(info hackpadfs.FileInfo) quickInfo {
+	isDir := info.IsDir()
+	var size int64
+	if !isDir {
+		size = info.Size()
+	}
 	return quickInfo{
 		Name:  info.Name(),
-		Size:  info.Size(),
+		Size:  size,
 		Mode:  info.Mode(),
-		IsDir: info.IsDir(),
+		IsDir: isDir,
 	}
 }
 
@@ -93,7 +101,7 @@ func asQuickInfo(info hackpadfs.FileInfo) quickInfo {
 // If successful, methods on the returned File can be used for I/O; the associated file descriptor has mode O_RDWR.
 // If there is an error, it will be of type *PathError.
 func TestCreate(tb testing.TB, setup SetupFSFunc) {
-	testFsCreate(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
+	testCreate(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
 		if fs, ok := fs.(hackpadfs.CreateFS); ok {
 			return fs.Create(name)
 		}
@@ -102,7 +110,7 @@ func TestCreate(tb testing.TB, setup SetupFSFunc) {
 	})
 }
 
-func testFsCreate(tb testing.TB, setup SetupFSFunc, createFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
+func testCreate(tb testing.TB, setup SetupFSFunc, createFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
 	tbRun(tb, "new file", func(tb testing.TB) {
 		_, commit := setup(tb)
 		fs := commit()
@@ -426,68 +434,82 @@ func testOpen(tb testing.TB, setup SetupFSFunc, openFn func(hackpadfs.FS, string
 	})
 }
 
-/*
 // OpenFile is the generalized open call; most users will use Open or Create instead.
 // It opens the named file with specified flag (O_RDONLY etc.).
 // If the file does not exist, and the O_CREATE flag is passed, it is created with mode perm (before umask).
 // If successful, methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func TestOpenFile(tb testing.TB, setup SetupFSFunc) {
+	openFileFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.OpenFileFS {
+		if fs, ok := fs.(hackpadfs.OpenFileFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an OpenFileFS")
+		return nil
+	}
 	tbRun(tb, "read-only", func(tb testing.TB) {
-		testFsOpen(tb, undertest, expected, func(fs hackpadfs.Fs, name string) (hackpadfs.File, error) {
-			return fs.OpenFile(name, hackpadfs.O_RDONLY, 0777)
+		testOpen(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
+			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadOnly, 0777)
 		})
 	})
 
 	tbRun(tb, "create", func(tb testing.TB) {
-		testFsCreate(tb, undertest, expected, func(fs hackpadfs.Fs, name string) (hackpadfs.File, error) {
-			return fs.OpenFile(name, hackpadfs.O_RDWR|hackpadfs.O_CREATE, 0666)
+		testCreate(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
+			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 		})
 	})
 
 	tbRun(tb, "create illegal perms", func(tb testing.TB) {
-		f, err = fs.OpenFile("foo", hackpadfs.O_RDWR|hackpadfs.O_CREATE, hackpadfs.ModeSocket|0777)
+		_, commit := setup(tb)
+		fs := openFileFS(tb, commit())
+		f, err := fs.OpenFile("foo", hackpadfs.FlagReadOnly|hackpadfs.FlagCreate, hackpadfs.ModeSocket|0777)
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: 0777},
+		}, fs)
 	})
 
 	tbRun(tb, "truncate on existing file", func(tb testing.TB) {
 		const fileContents = "hello world"
-
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents))
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		_, err = fs.OpenFile("foo", hackpadfs.O_TRUNC, 0700)
-		assert.NoError(tb, err)
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := openFileFS(tb, commit())
+		_, err = fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
+		assert.NoError(tb, err)
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: 0666},
+		}, fs)
 	})
 
 	tbRun(tb, "truncate on non-existent file", func(tb testing.TB) {
-		_, err := fs.OpenFile("foo", hackpadfs.O_TRUNC, 0700)
-		assert.Error(tb, err)
-
-		assert.True(tb, hackpadfs.IsNotExist(err))
-		assert.IsType(tb, &hackpadfs.PathError{}, err)
-		pathErr := err.(*hackpadfs.PathError)
-		assert.Equal(tb, "open", pathErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(pathErr.Path, "/"))
+		_, commit := setup(tb)
+		fs := openFileFS(tb, commit())
+		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
 	})
 
 	tbRun(tb, "truncate on existing dir", func(tb testing.TB) {
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		_, err := fs.OpenFile("foo", hackpadfs.O_TRUNC, 0700)
-		assert.Error(tb, err)
-
-		assert.True(tb, hackpadfs.IsDirErr(err))
-		assert.IsType(tb, &hackpadfs.PathError{}, err)
-		pathErr := err.(*hackpadfs.PathError)
-		assert.Equal(tb, "open", pathErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(pathErr.Path, "/"))
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		fs := openFileFS(tb, commit())
+		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrIsDir))
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
 	})
 
 	tbRun(tb, "append flag writes to end", func(tb testing.TB) {
@@ -496,68 +518,87 @@ func TestOpenFile(tb testing.TB, setup SetupFSFunc) {
 			fileContents2 = "sup "
 		)
 
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents1))
-		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
-		f, err = fs.OpenFile("foo", hackpadfs.O_RDWR|hackpadfs.O_APPEND, 0700)
-		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents2))
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents1))
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := openFileFS(tb, commit())
+		f, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite|hackpadfs.FlagAppend, 0700)
+		assert.NoError(tb, err)
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents2))
+		assert.NoError(tb, err)
+		assert.NoError(tb, f.Close())
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: 0666, Size: int64(len(fileContents1) + len(fileContents2))},
+		}, fs)
 	})
 }
 
 // Remove removes the named file or (empty) directory. If there is an error, it will be of type *PathError.
 func TestRemove(tb testing.TB, setup SetupFSFunc) {
+	removeFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.RemoveFS {
+		if fs, ok := fs.(hackpadfs.RemoveFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an RemoveFS")
+		return nil
+	}
+
 	tbRun(tb, "remove file", func(tb testing.TB) {
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Remove("foo"))
-		undertestStat := statFS(tb, expected.FS())
 
+		fs := removeFS(tb, commit())
+		assert.NoError(tb, fs.Remove("foo"))
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove empty dir", func(tb testing.TB) {
-		err = fs.Mkdir("foo", 0700)
-		assert.NoError(tb, err)
-		assert.NoError(tb, fs.Remove("foo"))
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
+		fs := removeFS(tb, commit())
+		assert.NoError(tb, fs.Remove("foo"))
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove non-existing file", func(tb testing.TB) {
+		_, commit := setup(tb)
+		fs := removeFS(tb, commit())
 		err := fs.Remove("foo")
-		assert.Error(tb, err)
-
-		assert.True(tb, hackpadfs.IsNotExist(err))
-		assert.IsType(tb, &hackpadfs.PathError{}, err)
-		pathErr := err.(*hackpadfs.PathError)
-		assert.Equal(tb, "remove", pathErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(pathErr.Path, "/"))
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.Equal(tb, "remove", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
-		err = fs.Mkdir("foo", 0700)
-		assert.NoError(tb, err)
-		f, err = fs.Create("foo/bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		err := fs.Remove("foo")
-		assert.Error(tb, err)
 
-		assert.True(tb, hackpadfs.IsExist(err))
-		assert.IsType(tb, &hackpadfs.PathError{}, err)
-		pathErr := err.(*hackpadfs.PathError)
-		assert.Equal(tb, "remove", pathErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(pathErr.Path, "/"))
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := removeFS(tb, commit())
+		err = fs.Remove("foo")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.Equal(tb, "remove", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo":     {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"foo/bar": {Mode: 0666},
+		}, fs)
 	})
 }
 
@@ -566,181 +607,268 @@ func TestRemove(tb testing.TB, setup SetupFSFunc) {
 // If the path does not exist, RemoveAll returns nil (no error).
 // If there is an error, it will be of type *PathError.
 func TestRemoveAll(tb testing.TB, setup SetupFSFunc) {
+	removeAllFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.RemoveAllFS {
+		if fs, ok := fs.(hackpadfs.RemoveAllFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an RemoveAllFS")
+		return nil
+	}
+
 	tbRun(tb, "remove file", func(tb testing.TB) {
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.RemoveAll("foo"))
-		undertestStat := statFS(tb, expected.FS())
 
+		fs := removeAllFS(tb, commit())
+		assert.NoError(tb, fs.RemoveAll("foo"))
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove empty dir", func(tb testing.TB) {
-		err = fs.Mkdir("foo", 0700)
-		assert.NoError(tb, err)
-		assert.NoError(tb, fs.RemoveAll("foo"))
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
+		fs := removeAllFS(tb, commit())
+		assert.NoError(tb, fs.RemoveAll("foo"))
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove non-existing file", func(tb testing.TB) {
+		_, commit := setup(tb)
+		fs := removeAllFS(tb, commit())
 		assert.NoError(tb, fs.RemoveAll("foo"))
-
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
 	tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
-		err = fs.Mkdir("foo", 0700)
-		assert.NoError(tb, err)
-		f, err = fs.Create("foo/bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.RemoveAll("foo"))
 
+		fs := removeAllFS(tb, commit())
+		assert.NoError(tb, fs.RemoveAll("foo"))
 		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 }
 
+// TestRename verifies fs.Rename().
+//
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // OS-specific restrictions may apply when oldpath and newpath are in different directories.
 // If there is an error, it will be of type *LinkError.
 func TestRename(tb testing.TB, setup SetupFSFunc) {
+	renameFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.RenameFS {
+		if fs, ok := fs.(hackpadfs.RenameFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an RenameFS")
+		return nil
+	}
+
 	tbRun(tb, "inside same directory", func(tb testing.TB) {
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		f, err = fs.Create("foo/bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Rename("foo/bar", "foo/baz"))
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("foo/bar", "foo/baz"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo":     {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"foo/baz": {Mode: 0666},
+		}, fs)
 	})
 
 	tbRun(tb, "inside same directory in root", func(tb testing.TB) {
-		f, err = fs.Create("bar")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "bar")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Rename("bar", "baz"))
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("bar", "baz"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"baz": {Mode: 0666},
+		}, fs)
 	})
 
 	tbRun(tb, "same file", func(tb testing.TB) {
 		const fileContents = `hello world`
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		f, err = fs.Create("foo/bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
 		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents))
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Rename("foo/bar", "foo/bar"))
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("foo/bar", "foo/bar"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo":     {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"foo/bar": {Mode: 0666, Size: int64(len(fileContents))},
+		}, fs)
 	})
 
 	tbRun(tb, "same directory", func(tb testing.TB) {
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+
+		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "foo")
 
-		assert.Error(tb, err)
-		assert.True(tb, hackpadfs.IsExist(err))
-		assert.IsType(tb, &hackpadfs.LinkError{}, err)
-		linkErr := err.(*hackpadfs.LinkError)
-		assert.Equal(tb, "rename", linkErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(linkErr.Old, "/"))
-		assert.Equal(tb, "foo", strings.TrimPrefix(linkErr.New, "/"))
-
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		if assert.Error(tb, err) {
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			switch err := err.(type) {
+			case *hackpadfs.LinkError:
+				assert.Equal(tb, "rename", err.Op)
+				assert.Equal(tb, "foo", err.Old)
+				assert.Equal(tb, "foo", err.New)
+			default:
+				assert.Equal(tb, "*os.LinkError", fmt.Sprintf("%T", err))
+				assert.Equal(tb, "rename foo foo: file exists", err.Error())
+			}
+		}
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+		}, fs)
 	})
 
 	tbRun(tb, "newpath is directory", func(tb testing.TB) {
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		assert.NoError(tb, fs.Mkdir("bar", 0700))
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
+
+		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "bar")
-		assert.Error(tb, err)
-
-		assert.Error(tb, err)
-		assert.True(tb, hackpadfs.IsExist(err))
-		assert.IsType(tb, &hackpadfs.LinkError{}, err)
-		linkErr := err.(*hackpadfs.LinkError)
-		assert.Equal(tb, "rename", linkErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(linkErr.Old, "/"))
-		assert.Equal(tb, "bar", strings.TrimPrefix(linkErr.New, "/"))
-
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		if assert.Error(tb, err) {
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			switch err := err.(type) {
+			case *hackpadfs.LinkError:
+				assert.Equal(tb, "rename", err.Op)
+				assert.Equal(tb, "foo", err.Old)
+				assert.Equal(tb, "bar", err.New)
+			default:
+				assert.Equal(tb, "*os.LinkError", fmt.Sprintf("%T", err))
+				assert.Equal(tb, "rename foo bar: file exists", err.Error())
+			}
+		}
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"bar": {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+		}, fs)
 	})
 
 	tbRun(tb, "newpath in root", func(tb testing.TB) {
 		const fileContents = `hello world`
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		f, err = fs.Create("foo/bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
 		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents))
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Rename("foo/bar", "baz"))
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("foo/bar", "baz"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"baz": {Mode: 0666, Size: int64(len(fileContents))},
+		}, fs)
 	})
 
 	tbRun(tb, "newpath in subdirectory", func(tb testing.TB) {
 		const fileContents = `hello world`
-		assert.NoError(tb, fs.Mkdir("foo", 0700))
-		f, err = fs.Create("bar")
+		setupFS, commit := setup(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "bar")
 		assert.NoError(tb, err)
-		_, err = f.Write([]byte(fileContents))
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, fs.Rename("bar", "foo/baz"))
 
-		tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("bar", "foo/baz"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo":     {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"foo/baz": {Mode: 0666, Size: int64(len(fileContents))},
+		}, fs)
 	})
 }
 
 // Stat returns a FileInfo describing the named file. If there is an error, it will be of type *PathError.
 func TestStat(tb testing.TB, setup SetupFSFunc) {
-	testStat(tb, undertest, expected, func(tb testing.TB, fsTest FSTester, path string) (hackpadfs.FileInfo, error) {
-		return fsTest.FS().Stat(path)
+	testStat(tb, setup, func(tb testing.TB, fs hackpadfs.FS, path string) (hackpadfs.FileInfo, error) {
+		if fs, ok := fs.(hackpadfs.StatFS); ok {
+			return fs.Stat(path)
+		}
+		tb.Skip("FS is not an StatFS")
+		return nil, nil
 	})
 }
 
-func testStat(tb testing.TB, undertest, expected FSTester, stater func(testing.TB, FSTester, string) (hackpadfs.FileInfo, error)) {
+func testStat(tb testing.TB, setup SetupFSFunc, stater func(testing.TB, hackpadfs.FS, string) (hackpadfs.FileInfo, error)) {
 	tbRun(tb, "stat a file", func(tb testing.TB) {
-		f, err = undertest.WriteFS().Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, undertest.WriteFS().Chmod("foo", 0755))
-		info, err := stater(tb, undertest, "foo")
-		assert.NoError(tb, err)
+		assert.NoError(tb, hackpadfs.Chmod(setupFS, "foo", 0755))
 
-		assertEqualFileInfo(tb, eInfo, info)
+		fs := commit()
+		info, err := stater(tb, fs, "foo")
+		assert.NoError(tb, err)
+		assert.Equal(tb, quickInfo{
+			Name: "foo",
+			Mode: 0755,
+		}, asQuickInfo(info))
 	})
 
 	tbRun(tb, "stat a directory", func(tb testing.TB) {
-		err = undertest.WriteFS().Mkdir("foo", 0755)
-		assert.NoError(tb, err)
-		info, err := stater(tb, undertest, "foo")
+		setupFS, commit := setup(tb)
+		err := hackpadfs.Mkdir(setupFS, "foo", 0755)
 		assert.NoError(tb, err)
 
-		assertEqualFileInfo(tb, eInfo, info)
+		fs := commit()
+		info, err := stater(tb, fs, "foo")
+		assert.NoError(tb, err)
+		assert.Equal(tb, quickInfo{
+			Name:  "foo",
+			Mode:  hackpadfs.ModeDir | 0755,
+			IsDir: true,
+		}, asQuickInfo(info))
 	})
 
 	tbRun(tb, "stat nested files", func(tb testing.TB) {
-		err = undertest.WriteFS().Mkdir("foo", 0755)
+		setupFS, commit := setup(tb)
+		err := hackpadfs.Mkdir(setupFS, "foo", 0755)
 		assert.NoError(tb, err)
-		err = undertest.WriteFS().Mkdir("foo/bar", 0755)
+		err = hackpadfs.Mkdir(setupFS, "foo/bar", 0755)
 		assert.NoError(tb, err)
-		f, err = undertest.WriteFS().Create("foo/bar/baz")
+		f, err := hackpadfs.Create(setupFS, "foo/bar/baz")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		uInfo1, err := stater(tb, undertest, "foo/bar")
-		assert.NoError(tb, err)
-		uInfo2, err := stater(tb, undertest, "foo/bar/baz")
-		assert.NoError(tb, err)
 
-		assertEqualFileInfo(tb, eInfo1, uInfo1)
-		assertEqualFileInfo(tb, eInfo2, uInfo2)
+		fs := commit()
+		info1, err := stater(tb, fs, "foo/bar")
+		assert.NoError(tb, err)
+		info2, err := stater(tb, fs, "foo/bar/baz")
+		assert.NoError(tb, err)
+		assert.Equal(tb, quickInfo{
+			Name:  "bar",
+			Mode:  hackpadfs.ModeDir | 0755,
+			IsDir: true,
+		}, asQuickInfo(info1))
+		assert.Equal(tb, quickInfo{
+			Name: "baz",
+			Mode: 0666,
+		}, asQuickInfo(info2))
 	})
 }
 
@@ -752,42 +880,53 @@ func testStat(tb testing.TB, undertest, expected FSTester, stater func(testing.T
 //
 // fstest will only check permission bits
 func TestChmod(tb testing.TB, setup SetupFSFunc) {
+	chmodFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.ChmodFS {
+		if fs, ok := fs.(hackpadfs.ChmodFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an ChmodFS")
+		return nil
+	}
+
 	tbRun(tb, "change permission bits", func(tb testing.TB) {
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
 
+		fs := chmodFS(tb, commit())
 		err = fs.Chmod("foo", 0755)
 		assert.NoError(tb, err)
-		info, err := fs.Stat("foo")
+		info, err := hackpadfs.Stat(fs, "foo")
 		assert.NoError(tb, err)
-		assertEqualFileInfo(tb, eInfo, info)
+		assert.Equal(tb, quickInfo{
+			Name: "foo",
+			Mode: 0755,
+		}, asQuickInfo(info))
 	})
 
-	uLinker, uOK := fs.(hackpadfs.Symlinker)
-	eLinker, eOK := expected.FS().(hackpadfs.Symlinker)
-	if !uOK {
-		t.Skip("Skipping symlink tests, 'undertest' does not support hackpadfs.Symlinker")
-	}
-	if !eOK {
-		t.Skip("Skipping symlink tests, 'expected' does not support hackpadfs.Symlinker")
-	}
-
-	tbRun(tb, "change symlink targets permission bits", func(tb testing.TB) {
-		f, err = fs.Create("foo")
+	tbRun(tb, "change symlink target permission bits", func(tb testing.TB) {
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.NoError(tb, uLinker.SymlinkIfPossible("foo", "bar"))
+		assert.NoError(tb, hackpadfs.Symlink(setupFS, "foo", "bar"))
 
+		fs := chmodFS(tb, commit())
 		err = fs.Chmod("foo", 0755)
 		assert.NoError(tb, err)
-		uLinkInfo, err := fs.Stat("foo")
+		linkInfo, err := hackpadfs.Stat(fs, "foo")
 		assert.NoError(tb, err)
-		info, err := fs.Stat("bar")
+		info, err := hackpadfs.Stat(fs, "bar")
 		assert.NoError(tb, err)
-
-		assertEqualFileInfo(tb, eLinkInfo, uLinkInfo)
-		assertEqualFileInfo(tb, eInfo, info)
+		assert.Equal(tb, quickInfo{
+			Name: "foo",
+			Mode: 0755,
+		}, asQuickInfo(linkInfo))
+		assert.Equal(tb, quickInfo{
+			Name: "bar",
+			Mode: 0755,
+		}, asQuickInfo(info))
 	})
 }
 
@@ -800,30 +939,43 @@ func TestChtimes(tb testing.TB, setup SetupFSFunc) {
 		modifyTime = accessTime.Add(-1 * time.Minute)
 	)
 
-	tbRun(tb, "file does not exist", func(tb testing.TB) {
-		err := fs.Chtimes("foo", accessTime, modifyTime)
-		assert.Error(tb, err)
+	chtimesFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.ChtimesFS {
+		if fs, ok := fs.(hackpadfs.ChtimesFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not an ChtimesFS")
+		return nil
+	}
 
-		assert.True(tb, hackpadfs.IsNotExist(err))
-		assert.IsType(tb, &hackpadfs.PathError{}, err)
-		pathErr := err.(*hackpadfs.PathError)
-		assert.Equal(tb, "chtimes", pathErr.Op)
-		assert.Equal(tb, "foo", strings.TrimPrefix(pathErr.Path, "/"))
+	tbRun(tb, "file does not exist", func(tb testing.TB) {
+		_, commit := setup(tb)
+		fs := chtimesFS(tb, commit())
+		err := fs.Chtimes("foo", accessTime, modifyTime)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.Equal(tb, "chtimes", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
 	})
 
 	tbRun(tb, "change access and modify times", func(tb testing.TB) {
-		f, err = fs.Create("foo")
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
 
+		fs := chtimesFS(tb, commit())
 		err = fs.Chtimes("foo", accessTime, modifyTime)
 		assert.NoError(tb, err)
-		info, err := fs.Stat("foo")
+		info, err := hackpadfs.Stat(fs, "foo")
 		assert.NoError(tb, err)
-
-		assertEqualFileInfo(tb, eInfo, info)
+		assert.Equal(tb, quickInfo{
+			Name: "foo",
+			Mode: 0666,
+		}, asQuickInfo(info))
+		assert.Equal(tb, modifyTime.Format(time.RFC3339Nano), info.ModTime().Format(time.RFC3339Nano))
 	})
 }
 
 // TODO Symlink
-*/
