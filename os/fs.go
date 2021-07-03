@@ -14,7 +14,7 @@ type FS struct {
 	root string
 }
 
-func New() *FS {
+func NewFS() *FS {
 	return &FS{}
 }
 

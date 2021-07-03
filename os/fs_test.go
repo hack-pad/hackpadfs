@@ -19,7 +19,7 @@ func TestFSTest(t *testing.T) {
 		TestFS: func(tb testing.TB) fstest.SetupFS {
 			dir := tb.TempDir()
 			dir = strings.TrimPrefix(dir, "/") // TODO support Windows root path
-			fs, err := New().Sub(dir)
+			fs, err := NewFS().Sub(dir)
 			if !assert.NoError(tb, err) {
 				tb.FailNow()
 			}
