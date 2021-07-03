@@ -1,6 +1,6 @@
 // +build plan9 windows
 
-package fstest
+package os
 
 func setUmask(mask int) (oldmask int) {
 	return 0

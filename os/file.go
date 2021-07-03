@@ -1,4 +1,4 @@
-package osfs
+package os
 
 import (
 	"io"

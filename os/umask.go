@@ -1,6 +1,6 @@
 // +build !plan9,!windows
 
-package osfs
+package os
 
 import "syscall"
 
