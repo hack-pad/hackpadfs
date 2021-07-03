@@ -20,8 +20,10 @@ func TestFileClose(tb testing.TB, setup SetupFSFunc) {
 
 	fs := commit()
 	f, err = fs.Open("foo")
-	assert.NoError(tb, f.Close())
-	assert.Error(tb, f.Close())
+	if assert.NoError(tb, err) {
+		assert.NoError(tb, f.Close())
+		assert.Error(tb, f.Close())
+	}
 }
 
 func TestFileRead(tb testing.TB, setup SetupFSFunc) {
@@ -34,6 +36,9 @@ func TestFileRead(tb testing.TB, setup SetupFSFunc) {
 
 		fs := commit()
 		f, err = fs.Open("foo")
+		if !assert.NoError(tb, err) {
+			tb.FailNow()
+		}
 		buf := make([]byte, 10)
 		n, err := f.Read(buf)
 		assert.Equal(tb, 0, n)
@@ -52,7 +57,9 @@ func TestFileRead(tb testing.TB, setup SetupFSFunc) {
 
 		fs := commit()
 		f, err = fs.Open("foo")
-		assert.NoError(tb, err)
+		if !assert.NoError(tb, err) {
+			tb.FailNow()
+		}
 
 		buf := make([]byte, firstBufLen)
 		n, err := f.Read(buf)

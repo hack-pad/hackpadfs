@@ -80,6 +80,9 @@ type quickInfo struct {
 }
 
 func asQuickInfo(info hackpadfs.FileInfo) quickInfo {
+	if info == nil {
+		return quickInfo{}
+	}
 	isDir := info.IsDir()
 	var size int64
 	if !isDir {
@@ -411,7 +414,9 @@ func testOpen(tb testing.TB, setup SetupFSFunc, openFn func(hackpadfs.FS, string
 
 		fs := commit()
 		f, err = openFn(fs, "foo")
-		assert.NoError(tb, err)
+		if !assert.NoError(tb, err) {
+			tb.FailNow()
+		}
 		buf := make([]byte, n)
 		n2, err := io.ReadFull(f, buf)
 		assert.NoError(tb, err)

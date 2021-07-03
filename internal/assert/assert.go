@@ -41,7 +41,7 @@ func Zero(tb testing.TB, value interface{}) bool {
 // NotZero asserts value is not the zero value
 func NotZero(tb testing.TB, value interface{}) bool {
 	tb.Helper()
-	if reflect.ValueOf(value).IsZero() {
+	if value == nil || reflect.ValueOf(value).IsZero() {
 		tb.Error("Value should not be zero")
 		return false
 	}
