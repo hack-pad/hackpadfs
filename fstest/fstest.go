@@ -29,7 +29,7 @@ type FSOptions struct {
 type SetupFS interface {
 	hackpadfs.FS
 	hackpadfs.OpenFileFS
-	hackpadfs.ChownFS
+	hackpadfs.ChmodFS
 	hackpadfs.ChtimesFS
 	hackpadfs.SymlinkFS
 }
