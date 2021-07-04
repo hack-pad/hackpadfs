@@ -471,7 +471,7 @@ func TestOpenFile(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "create", func(tb testing.TB) {
 		testCreate(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
-			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
+			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadWrite|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 		})
 	})
 
