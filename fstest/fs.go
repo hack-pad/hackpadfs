@@ -106,6 +106,10 @@ func asQuickInfo(info hackpadfs.FileInfo) quickInfo {
 // If successful, methods on the returned File can be used for I/O; the associated file descriptor has mode O_RDWR.
 // If there is an error, it will be of type *PathError.
 func TestCreate(tb testing.TB, setup SetupFSFunc) {
+	_, commit := setup(tb)
+	if _, ok := commit().(hackpadfs.CreateFS); !ok {
+		tb.Skip("FS is not a CreateFS")
+	}
 	testCreate(tb, setup, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
 		if fs, ok := fs.(hackpadfs.CreateFS); ok {
 			return fs.Create(name)
