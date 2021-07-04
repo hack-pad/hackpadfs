@@ -31,7 +31,6 @@ type SetupFS interface {
 	hackpadfs.OpenFileFS
 	hackpadfs.ChmodFS
 	hackpadfs.ChtimesFS
-	hackpadfs.SymlinkFS
 }
 
 type SetupFSFunc func(tb testing.TB) (SetupFS, func() hackpadfs.FS)
