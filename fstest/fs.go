@@ -939,6 +939,9 @@ func TestChmod(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "change symlink target permission bits", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
+		if _, ok := setupFS.(hackpadfs.SymlinkFS); !ok {
+			tb.Skip("FS is not an SymlinkFS")
+		}
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, f.Close())

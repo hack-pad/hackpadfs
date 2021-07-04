@@ -22,22 +22,25 @@ func (fs *FS) wrapperErr(op string, path string, err error) error {
 	if err == nil {
 		return nil
 	}
-	if uErr, ok := err.(interface{ Unwrap() error }); ok && uErr != nil {
-		err = uErr.Unwrap()
-	}
 	return &hackpadfs.PathError{Op: op, Path: path, Err: err}
 }
 
 func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
 	file := fs.newDir(name, perm)
 	_, err := fs.Stat(name)
-	if errors.Is(err, hackpadfs.ErrNotExist) {
-		return fs.wrapperErr("mkdir", name, file.save())
-	}
-	if err != nil {
+	switch {
+	case err == nil:
+		return fs.wrapperErr("mkdir", name, hackpadfs.ErrExist)
+	case !errors.Is(err, hackpadfs.ErrNotExist):
 		return err
 	}
-	return fs.wrapperErr("mkdir", name, hackpadfs.ErrExist)
+	if name != "." {
+		_, err := fs.Stat(path.Dir(name))
+		if err != nil {
+			return fs.wrapperErr("mkdir", name, err)
+		}
+	}
+	return fs.wrapperErr("mkdir", name, file.save())
 }
 
 func (fs *FS) newDir(name string, perm hackpadfs.FileMode) *file {
@@ -112,7 +115,7 @@ func isMissingDir(path string, info hackpadfs.FileInfo, err error) (missing bool
 		return false, nil
 	case !info.IsDir():
 		// a file is found where we want a directory, fail with ENOTDIR
-		return true, &hackpadfs.PathError{Op: "mkdirall", Path: path, Err: hackpadfs.ErrNotDir}
+		return true, &hackpadfs.PathError{Op: "mkdir", Path: path, Err: hackpadfs.ErrNotDir}
 	default:
 		return false, nil
 	}
@@ -177,15 +180,11 @@ func (fs *FS) Remove(name string) error {
 		if err != nil {
 			return err
 		}
-		if len(dirNames) != 0 {
+		if len(dirNames) > 0 {
 			return &hackpadfs.PathError{Op: "remove", Path: name, Err: hackpadfs.ErrNotEmpty}
 		}
 	}
 	return fs.setFile(name, nil)
-}
-
-func (fs *FS) RemoveAll(path string) error {
-	return &hackpadfs.PathError{Op: "removeall", Path: path, Err: hackpadfs.ErrUnsupported}
 }
 
 func (fs *FS) Rename(oldname, newname string) error {

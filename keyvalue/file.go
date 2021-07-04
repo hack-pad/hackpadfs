@@ -219,13 +219,12 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *file) Write(p []byte) (n int, err error) {
-	n, err = f.WriteAt(p, f.offset)
-	f.offset += int64(n)
+	n, err = f.WriteBlob(blob.NewBytes(p))
 	return
 }
 
 func (f *file) WriteBlob(p blob.Blob) (n int, err error) {
-	n, err = f.WriteBlobAt(p, f.offset)
+	n, err = f.writeBlobAt("write", p, f.offset)
 	f.offset += int64(n)
 	return
 }
@@ -235,6 +234,10 @@ func (f *file) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *file) WriteBlobAt(p blob.Blob, off int64) (n int, err error) {
+	return f.writeBlobAt("writeat", p, off)
+}
+
+func (f *file) writeBlobAt(op string, p blob.Blob, off int64) (n int, err error) {
 	if f.flag&hackpadfs.FlagAppend != 0 {
 		off = int64(f.Size())
 	}
@@ -243,20 +246,20 @@ func (f *file) WriteBlobAt(p blob.Blob, off int64) (n int, err error) {
 	if int64(f.Size()) < endIndex {
 		data, err := f.Data()
 		if err != nil {
-			return 0, err
+			return 0, &hackpadfs.PathError{Op: op, Path: f.path, Err: err}
 		}
 		err = blob.Grow(data, endIndex-int64(f.Size()))
 		if err != nil {
-			return 0, err
+			return 0, &hackpadfs.PathError{Op: op, Path: f.path, Err: err}
 		}
 	}
 	data, err := f.Data()
 	if err != nil {
-		return 0, err
+		return 0, &hackpadfs.PathError{Op: op, Path: f.path, Err: err}
 	}
 	n, err = blob.Set(data, p, off)
 	if err != nil {
-		return n, err
+		return n, &hackpadfs.PathError{Op: op, Path: f.path, Err: err}
 	}
 	if n != 0 {
 		f.updateModTime()
@@ -276,26 +279,26 @@ func (f *file) Truncate(size int64) error {
 	length := int64(f.Size())
 	switch {
 	case size < 0:
-		return hackpadfs.ErrInvalid
+		return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: hackpadfs.ErrInvalid}
 	case size == length:
 		return nil
 	case size > length:
 		data, err := f.Data()
 		if err != nil {
-			return err
+			return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: err}
 		}
 		err = blob.Grow(data, size-length)
 		if err != nil {
-			return err
+			return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: err}
 		}
 	case size < length:
 		data, err := f.Data()
 		if err != nil {
-			return err
+			return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: err}
 		}
 		err = blob.Truncate(data, size)
 		if err != nil {
-			return err
+			return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: err}
 		}
 	}
 	f.updateModTime()

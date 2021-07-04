@@ -40,7 +40,7 @@ func (m mapRecord) ReadDirNames() ([]string, error) {
 	for p := range m.store.records {
 		if strings.HasPrefix(p, prefix) {
 			p = strings.TrimPrefix(p, prefix)
-			if strings.ContainsRune(p, '/') {
+			if !strings.ContainsRune(p, '/') {
 				names = append(names, p)
 			}
 		}

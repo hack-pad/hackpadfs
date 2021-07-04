@@ -1,5 +1,10 @@
 package blob
 
+import (
+	"errors"
+	"fmt"
+)
+
 var (
 	// ensure Bytes conforms to these interfaces:
 	_ interface {
@@ -36,16 +41,34 @@ func (b *Bytes) Len() int {
 }
 
 func (b *Bytes) View(start, end int64) (Blob, error) {
+	if start < 0 || start > int64(len(b.bytes)) {
+		return nil, fmt.Errorf("Start index out of bounds: %d", start)
+	}
+	if end < 0 || end > int64(len(b.bytes)) {
+		return nil, fmt.Errorf("End index out of bounds: %d", end)
+	}
 	return NewBytes(b.bytes[start:end]), nil
 }
 
 func (b *Bytes) Slice(start, end int64) (Blob, error) {
+	if start < 0 || start > int64(len(b.bytes)) {
+		return nil, fmt.Errorf("Start index out of bounds: %d", start)
+	}
+	if end < 0 || end > int64(len(b.bytes)) {
+		return nil, fmt.Errorf("End index out of bounds: %d", end)
+	}
 	buf := make([]byte, end-start)
 	copy(buf, b.bytes)
 	return NewBytes(buf), nil
 }
 
 func (b *Bytes) Set(dest Blob, srcStart int64) (n int, err error) {
+	if srcStart < 0 {
+		return 0, errors.New("negative offset")
+	}
+	if srcStart >= int64(len(b.bytes)) {
+		return 0, fmt.Errorf("Offset out of bounds: %d", srcStart)
+	}
 	n = copy(b.bytes[srcStart:], dest.Bytes())
 	return n, nil
 }
