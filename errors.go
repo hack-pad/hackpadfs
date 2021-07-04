@@ -13,6 +13,7 @@ var (
 	ErrClosed      = fs.ErrClosed
 	ErrIsDir       = syscall.EISDIR
 	ErrNotDir      = syscall.ENOTDIR
+	ErrNotEmpty    = syscall.ENOTEMPTY
 	ErrUnsupported = syscall.ENOSYS
 
 	SkipDir = fs.SkipDir
