@@ -1,6 +1,7 @@
 package keyvalue
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"path"
@@ -60,31 +61,30 @@ func (fs *FS) getFile(path string) (*file, error) {
 		path: path,
 		fs:   fs,
 	}
-	var err error
-	f.runOnceFileRecord.record, err = fs.store.Get(path)
+	txn, err := fs.store.Transaction()
+	if err != nil {
+		return nil, err
+	}
+	txn.Get(path)
+	results, err := txn.Commit(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	f.runOnceFileRecord.record, err = results[0].Record, results[0].Err
 	return &file{fileData: &f}, err
 }
 
 // setFile write the 'file' data to the store at 'path'. If 'file' is nil, the file is deleted.
 func (fs *FS) setFile(path string, file FileRecord) error {
-	if file == nil {
-		return <-QueueSetFileRecord(fs.store, path, nil)
+	if !hackpadfs.ValidPath(path) {
+		return hackpadfs.ErrInvalid
 	}
-	return <-QueueSetFileRecord(fs.store, path, file)
-}
-
-type QueueSetter interface {
-	QueueSetFileRecord(path string, data FileRecord) <-chan error
-}
-
-func QueueSetFileRecord(s Store, path string, data FileRecord) <-chan error {
-	if queueSetter, ok := s.(QueueSetter); ok {
-		return queueSetter.QueueSetFileRecord(path, data)
+	txn, err := fs.store.Transaction()
+	if err != nil {
+		return err
 	}
-
-	err := make(chan error, 1)
-	err <- s.Set(path, data)
-	close(err)
+	txn.Set(path, file)
+	_, err = txn.Commit(context.Background())
 	return err
 }
 

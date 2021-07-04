@@ -9,7 +9,12 @@ import (
 	"github.com/hack-pad/hackpadfs/internal/assert"
 )
 
+const defaultConcurrentTasks = 10
+
 func concurrentTasks(count int, task func(int)) {
+	if count == 0 {
+		count = defaultConcurrentTasks
+	}
 	var wg sync.WaitGroup
 	wg.Add(count)
 	for i := 0; i < count; i++ {
@@ -33,7 +38,7 @@ func TestConcurrentCreate(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "same file path", func(tb testing.TB) {
 		fs := createFS(tb)
-		concurrentTasks(10, func(i int) {
+		concurrentTasks(0, func(i int) {
 			f, err := fs.Create("foo")
 			if assert.NoError(tb, err) {
 				assert.NoError(tb, f.Close())
@@ -43,7 +48,7 @@ func TestConcurrentCreate(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "different file paths", func(tb testing.TB) {
 		fs := createFS(tb)
-		concurrentTasks(10, func(i int) {
+		concurrentTasks(0, func(i int) {
 			f, err := fs.Create(fmt.Sprintf("foo-%d", i))
 			if assert.NoError(tb, err) {
 				assert.NoError(tb, f.Close())
@@ -64,7 +69,7 @@ func TestConcurrentOpenFileCreate(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "same file path", func(tb testing.TB) {
 		fs := openFileFS(tb)
-		concurrentTasks(100, func(i int) {
+		concurrentTasks(0, func(i int) {
 			f, err := fs.OpenFile("foo", hackpadfs.FlagReadWrite|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 			if assert.NoError(tb, err) {
 				assert.NoError(tb, f.Close())
@@ -74,7 +79,7 @@ func TestConcurrentOpenFileCreate(tb testing.TB, setup SetupFSFunc) {
 
 	tbRun(tb, "different file paths", func(tb testing.TB) {
 		fs := openFileFS(tb)
-		concurrentTasks(100, func(i int) {
+		concurrentTasks(0, func(i int) {
 			f, err := fs.OpenFile(fmt.Sprintf("foo-%d", i), hackpadfs.FlagReadWrite|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 			if assert.NoError(tb, err) {
 				assert.NoError(tb, f.Close())

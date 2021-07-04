@@ -1,19 +1,12 @@
 package keyvalue
 
-// GetAllStore is a Store that fetches files in bulk.
-// Returns individual results with optional Record and Err fields for each path.
-// The return slice must have the same length as paths.
-type GetAllStore interface {
-	GetAll(paths []string) []GetAllResult
-}
-
-type GetAllResult struct {
-	Record FileRecord
-	Err    error
-}
+import "context"
 
 func (fs *FS) getFiles(paths ...string) ([]*file, []error) {
-	results := getFileRecords(fs.store, paths)
+	results, err := getFileRecords(fs.store, paths)
+	if err != nil {
+		return nil, []error{err}
+	}
 	files := make([]*file, len(paths))
 	errs := make([]error, len(paths))
 	for i := range paths {
@@ -29,15 +22,13 @@ func (fs *FS) getFiles(paths ...string) ([]*file, []error) {
 	return files, errs
 }
 
-func getFileRecords(s Store, paths []string) []GetAllResult {
-	if s, ok := s.(GetAllStore); ok {
-		return s.GetAll(paths)
+func getFileRecords(store *transactionOnly, paths []string) ([]OpResult, error) {
+	txn, err := store.Transaction()
+	if err != nil {
+		return nil, err
 	}
-
-	results := make([]GetAllResult, len(paths))
-	for i, path := range paths {
-		dest, err := s.Get(path)
-		results[i] = GetAllResult{Record: dest, Err: err}
+	for _, path := range paths {
+		txn.Get(path)
 	}
-	return results
+	return txn.Commit(context.Background())
 }

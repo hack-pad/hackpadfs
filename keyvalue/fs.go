@@ -9,12 +9,12 @@ import (
 )
 
 type FS struct {
-	store Store
+	store *transactionOnly
 }
 
 func NewFS(store Store) (*FS, error) {
 	return &FS{
-		store: store,
+		store: newFSTransactioner(store),
 	}, nil
 }
 
@@ -64,10 +64,13 @@ func (fs *FS) MkdirAll(path string, perm hackpadfs.FileMode) error {
 	return nil
 }
 
-func statAll(store Store, paths []string) ([]hackpadfs.FileInfo, []error) {
+func statAll(store *transactionOnly, paths []string) ([]hackpadfs.FileInfo, []error) {
 	infos := make([]hackpadfs.FileInfo, len(paths))
 	errs := make([]error, len(paths))
-	results := getFileRecords(store, paths)
+	results, err := getFileRecords(store, paths)
+	if err != nil {
+		return nil, []error{err}
+	}
 	for i := range paths {
 		path := paths[i]
 		result := results[i]

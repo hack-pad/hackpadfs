@@ -7,6 +7,7 @@ import (
 )
 
 type TransactionStore interface {
+	Store
 	Transaction() (Transaction, error)
 }
 
