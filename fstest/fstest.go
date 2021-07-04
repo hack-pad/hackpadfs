@@ -133,4 +133,7 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("file.Stat", TestFileStat).Run(tb, options)
 	newSubtask("file.Sync", TestFileSync).Run(tb, options)
 	newSubtask("file.Truncate", TestFileTruncate).Run(tb, options)
+
+	newSubtask("fs_concurrent.Create", TestConcurrentCreate).Run(tb, options)
+	newSubtask("fs_concurrent.OpenFileCreate", TestConcurrentOpenFileCreate).Run(tb, options)
 }
