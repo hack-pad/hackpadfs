@@ -131,12 +131,7 @@ func Mkdir(fs FS, name string, perm FileMode) error {
 	if fs, ok := fs.(MkdirFS); ok {
 		return fs.Mkdir(name, perm)
 	}
-	file, err := OpenFile(fs, name, FlagReadOnly|FlagCreate|FlagExclusive, perm|gofs.ModeDir)
-	if err != nil {
-		return &PathError{Op: "mkdir", Path: name, Err: err}
-	}
-	defer file.Close()
-	return nil
+	return &PathError{Op: "mkdir", Path: name, Err: ErrUnsupported}
 }
 
 func MkdirAll(fs FS, path string, perm FileMode) error {
