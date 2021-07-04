@@ -30,9 +30,9 @@ func (fs *FS) getFiles(paths ...string) ([]*file, []error) {
 		result, err := results[i].Record, results[i].Err
 		files[i], errs[i] = &file{
 			fileData: &fileData{
-				FileRecord: result,
-				path:       paths[i],
-				fs:         fs,
+				runOnceFileRecord: runOnceFileRecord{record: result},
+				path:              paths[i],
+				fs:                fs,
 			},
 		}, err
 	}

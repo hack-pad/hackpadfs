@@ -106,6 +106,10 @@ func isMissingDir(path string, info hackpadfs.FileInfo, err error) (missing bool
 	}
 }
 
+func (fs *FS) Open(name string) (hackpadfs.File, error) {
+	return fs.OpenFile(name, hackpadfs.FlagReadOnly, 0)
+}
+
 func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (afFile hackpadfs.File, retErr error) {
 	paths := []string{name}
 	if flag&hackpadfs.FlagCreate != 0 {

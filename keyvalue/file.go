@@ -28,7 +28,7 @@ type file struct {
 }
 
 type fileData struct {
-	FileRecord
+	runOnceFileRecord
 	modeOverride    *hackpadfs.FileMode
 	modTimeOverride time.Time
 
@@ -40,7 +40,7 @@ func (f *fileData) Mode() hackpadfs.FileMode {
 	if f.modeOverride != nil {
 		return *f.modeOverride
 	}
-	return f.FileRecord.Mode()
+	return f.runOnceFileRecord.Mode()
 }
 
 func (f *fileData) ModTime() time.Time {
@@ -48,7 +48,7 @@ func (f *fileData) ModTime() time.Time {
 	if f.modTimeOverride != zero {
 		return f.modTimeOverride
 	}
-	return f.FileRecord.ModTime()
+	return f.runOnceFileRecord.ModTime()
 }
 
 // getFile returns a file for 'path' if it exists, os.ErrNotExist otherwise
@@ -61,7 +61,7 @@ func (fs *FS) getFile(path string) (*file, error) {
 		fs:   fs,
 	}
 	var err error
-	f.FileRecord, err = fs.store.Get(path)
+	f.runOnceFileRecord.record, err = fs.store.Get(path)
 	return &file{fileData: &f}, err
 }
 
@@ -123,12 +123,14 @@ func (fs *FS) newFile(path string, flag int, mode hackpadfs.FileMode) *file {
 		fileData: &fileData{
 			fs:   fs,
 			path: path,
-			FileRecord: NewBaseFileRecord(0, time.Now(), mode, nil,
-				func() (blob.Blob, error) {
-					return blob.NewBytes(nil), nil
-				},
-				nil,
-			),
+			runOnceFileRecord: runOnceFileRecord{
+				record: NewBaseFileRecord(0, time.Now(), mode, nil,
+					func() (blob.Blob, error) {
+						return blob.NewBytes(nil), nil
+					},
+					nil,
+				),
+			},
 		},
 	}
 }
@@ -264,7 +266,7 @@ func (f *file) WriteBlobAt(p blob.Blob, off int64) (n int, err error) {
 }
 
 func (f *file) Stat() (hackpadfs.FileInfo, error) {
-	return fileInfo{Record: f.FileRecord, Path: f.path}, nil
+	return fileInfo{Record: &f.runOnceFileRecord, Path: f.path}, nil
 }
 
 func (f *file) Truncate(size int64) error {

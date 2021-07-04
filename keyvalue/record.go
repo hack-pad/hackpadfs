@@ -1,6 +1,7 @@
 package keyvalue
 
 import (
+	"sync"
 	"time"
 
 	"github.com/hack-pad/hackpadfs"
@@ -94,4 +95,70 @@ func (b *BaseFileRecord) ModTime() time.Time {
 
 func (b *BaseFileRecord) Sys() interface{} {
 	return b.sys
+}
+
+type runOnceFileRecord struct {
+	record FileRecord
+
+	data     blob.Blob
+	dataErr  error
+	dataOnce sync.Once
+
+	dirNames     []string
+	dirNamesErr  error
+	dirNamesOnce sync.Once
+
+	size     int64
+	sizeOnce sync.Once
+
+	mode     hackpadfs.FileMode
+	modeOnce sync.Once
+
+	modTime     time.Time
+	modTimeOnce sync.Once
+
+	sys     interface{}
+	sysOnce sync.Once
+}
+
+func (r *runOnceFileRecord) Data() (blob.Blob, error) {
+	r.dataOnce.Do(func() {
+		r.data, r.dataErr = r.record.Data()
+	})
+	return r.data, r.dataErr
+}
+
+func (r *runOnceFileRecord) ReadDirNames() ([]string, error) {
+	r.dirNamesOnce.Do(func() {
+		r.dirNames, r.dirNamesErr = r.record.ReadDirNames()
+	})
+	return r.dirNames, r.dirNamesErr
+}
+
+func (r *runOnceFileRecord) Size() int64 {
+	r.sizeOnce.Do(func() {
+		r.size = r.record.Size()
+	})
+	return r.size
+}
+
+func (r *runOnceFileRecord) Mode() hackpadfs.FileMode {
+	r.modeOnce.Do(func() {
+		r.mode = r.record.Mode()
+	})
+	return r.mode
+}
+
+func (r *runOnceFileRecord) ModTime() time.Time {
+	r.modTimeOnce.Do(func() {
+		r.modTime = r.record.ModTime()
+	})
+	return r.modTime
+}
+
+func (r *runOnceFileRecord) Sys() interface{} {
+	r.sysOnce.Do(func() {
+		r.sys = r.record.Sys()
+	})
+	return r.sys
 }
