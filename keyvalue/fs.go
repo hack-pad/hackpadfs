@@ -28,6 +28,18 @@ func (fs *FS) wrapperErr(op string, path string, err error) error {
 	return &hackpadfs.PathError{Op: op, Path: path, Err: err}
 }
 
+func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
+	file := fs.newDir(name, perm)
+	_, err := fs.Stat(name)
+	if errors.Is(err, hackpadfs.ErrNotExist) {
+		return fs.wrapperErr("mkdir", name, file.save())
+	}
+	if err != nil {
+		return err
+	}
+	return fs.wrapperErr("mkdir", name, hackpadfs.ErrExist)
+}
+
 func (fs *FS) newDir(name string, perm hackpadfs.FileMode) *file {
 	return fs.newFile(name, 0, hackpadfs.ModeDir|(perm&hackpadfs.ModePerm))
 }
@@ -119,8 +131,8 @@ func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (afFile h
 	storeFile, err := files[0], errs[0]
 	switch {
 	case err == nil:
-		if storeFile.info().IsDir() && flag&hackpadfs.FlagWriteOnly != 0 {
-			// write-only on a directory isn't allowed on hackpadfs.OpenFile either
+		if storeFile.info().IsDir() && flag&(hackpadfs.FlagCreate|hackpadfs.FlagWriteOnly) != 0 {
+			// write-only or create on a directory isn't allowed on hackpadfs.OpenFile
 			return nil, &hackpadfs.PathError{Op: "open", Path: name, Err: hackpadfs.ErrIsDir}
 		}
 		storeFile.flag = flag

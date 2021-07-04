@@ -49,7 +49,11 @@ func (m mapRecord) ReadDirNames() ([]string, error) {
 }
 
 func (m mapRecord) String() string {
-	return fmt.Sprintf("%q: %s %dB %s", m.path, m.mode, m.data.Len(), m.modTime.Format(time.RFC3339))
+	dataStr := "dir"
+	if !m.mode.IsDir() {
+		dataStr = fmt.Sprintf("%dB", m.data.Len())
+	}
+	return fmt.Sprintf("%q: %s %s %s", m.path, m.mode, dataStr, m.modTime.Format(time.RFC3339))
 }
 
 func newMapStore(tb testing.TB) Store {
