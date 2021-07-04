@@ -270,6 +270,9 @@ func (f *file) Stat() (hackpadfs.FileInfo, error) {
 }
 
 func (f *file) Truncate(size int64) error {
+	if f.Mode().IsDir() {
+		return &hackpadfs.PathError{Op: "truncate", Path: f.path, Err: hackpadfs.ErrIsDir}
+	}
 	length := int64(f.Size())
 	switch {
 	case size < 0:

@@ -37,6 +37,10 @@ func (r *readOnlyFile) Stat() (hackpadfs.FileInfo, error) {
 	return r.file.Stat()
 }
 
+func (r *readOnlyFile) Truncate(size int64) error {
+	return r.file.Truncate(size)
+}
+
 type writeOnlyFile struct {
 	file *file
 }

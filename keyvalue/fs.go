@@ -140,7 +140,7 @@ func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (afFile h
 		// require parent directory
 		err := errs[1]
 		if err != nil {
-			return nil, fs.wrapperErr("stat", name, err)
+			return nil, fs.wrapperErr("open", name, err)
 		}
 		storeFile = fs.newFile(name, flag, perm&hackpadfs.ModePerm)
 		if err := storeFile.save(); err != nil {
