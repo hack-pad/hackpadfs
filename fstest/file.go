@@ -15,8 +15,9 @@ import (
 func TestFileClose(tb testing.TB, setup SetupFSFunc) {
 	setupFS, commit := setup(tb)
 	f, err := hackpadfs.Create(setupFS, "foo")
-	assert.NoError(tb, err)
-	assert.NoError(tb, f.Close())
+	if assert.NoError(tb, err) {
+		assert.NoError(tb, f.Close())
+	}
 
 	fs := commit()
 	f, err = fs.Open("foo")
@@ -31,8 +32,9 @@ func TestFileRead(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "read empty", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
 
 		fs := commit()
 		f, err = fs.Open("foo")
@@ -50,10 +52,11 @@ func TestFileRead(tb testing.TB, setup SetupFSFunc) {
 		setupFS, commit := setup(tb)
 		const firstBufLen = 2
 		f, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
-		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(f, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
+		}
 
 		fs := commit()
 		f, err = fs.Open("foo")
@@ -88,10 +91,11 @@ func TestFileReadAt(tb testing.TB, setup SetupFSFunc) {
 	const fileContents = "hello world"
 	setupFS, commit := setup(tb)
 	f, err := hackpadfs.Create(setupFS, "foo")
-	assert.NoError(tb, err)
-	_, err = hackpadfs.WriteFile(f, []byte(fileContents))
-	assert.NoError(tb, err)
-	assert.NoError(tb, f.Close())
+	if assert.NoError(tb, err) {
+		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
+		assert.NoError(tb, err)
+		assert.NoError(tb, f.Close())
+	}
 	fs := commit()
 
 	for _, tc := range []struct {
@@ -142,6 +146,9 @@ func TestFileReadAt(tb testing.TB, setup SetupFSFunc) {
 		tbRun(tb, tc.description, func(tb testing.TB) {
 			tbParallel(tb)
 			file, err := fs.Open("foo")
+			if !assert.NoError(tb, err) {
+				return
+			}
 			defer func() {
 				assert.NoError(tb, file.Close())
 			}()
@@ -184,10 +191,11 @@ func TestFileSeek(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "seek start", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = fs.Open("foo")
@@ -207,10 +215,11 @@ func TestFileSeek(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "seek current", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = fs.Open("foo")
@@ -233,10 +242,11 @@ func TestFileSeek(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "seek end", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = fs.Open("foo")
@@ -268,8 +278,9 @@ func testFileWrite(tb testing.TB, setup SetupFSFunc, writer func(hackpadfs.File,
 	const fileContents = "hello world"
 	setupFS, commit := setup(tb)
 	f, err := hackpadfs.Create(setupFS, "foo")
-	assert.NoError(tb, err)
-	assert.NoError(tb, f.Close())
+	if assert.NoError(tb, err) {
+		assert.NoError(tb, f.Close())
+	}
 
 	fs := commit()
 	f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
@@ -296,8 +307,9 @@ func TestFileWriteAt(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "negative offset", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
@@ -319,8 +331,9 @@ func TestFileWriteAt(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "no offset", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
@@ -343,8 +356,9 @@ func TestFileWriteAt(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "offset inside file", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
@@ -371,8 +385,9 @@ func TestFileWriteAt(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "offset outside file", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 
 		fs := commit()
 		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
@@ -418,8 +433,9 @@ func TestFileReadDir(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "list root", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
 
 		fs := commit()
@@ -441,8 +457,9 @@ func TestFileReadDir(tb testing.TB, setup SetupFSFunc) {
 	tbRun(tb, "readdir batches", func(tb testing.TB) {
 		setupFS, commit := setup(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
 
 		fs := commit()
@@ -483,11 +500,13 @@ func TestFileReadDir(tb testing.TB, setup SetupFSFunc) {
 		setupFS, commit := setup(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		file, err := hackpadfs.Create(setupFS, "foo/bar")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 		file, err = hackpadfs.Create(setupFS, "foo/baz")
-		assert.NoError(tb, err)
-		assert.NoError(tb, file.Close())
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, file.Close())
+		}
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo/boo", 0700))
 
 		fs := commit()
@@ -526,10 +545,11 @@ func TestFileSync(tb testing.TB, setup SetupFSFunc) {
 	setupFS, commit := setup(tb)
 	const fileContents = "hello world"
 	file, err := hackpadfs.Create(setupFS, "foo")
-	assert.NoError(tb, err)
-	_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-	assert.NoError(tb, err)
-	assert.NoError(tb, file.Close())
+	if assert.NoError(tb, err) {
+		_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+		assert.NoError(tb, err)
+		assert.NoError(tb, file.Close())
+	}
 
 	fs := commit()
 	file, err = fs.Open("foo")
@@ -570,9 +590,10 @@ func TestFileTruncate(tb testing.TB, setup SetupFSFunc) {
 		tbRun(tb, tc.description, func(tb testing.TB) {
 			setupFS, commit := setup(tb)
 			file, err := hackpadfs.Create(setupFS, "foo")
-			assert.NoError(tb, err)
-			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-			assert.NoError(tb, err)
+			if assert.NoError(tb, err) {
+				_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+				assert.NoError(tb, err)
+			}
 
 			fs := commit()
 			file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
