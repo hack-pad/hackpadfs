@@ -6,15 +6,16 @@ import (
 )
 
 var (
-	ErrInvalid     = syscall.EINVAL // TODO update to fs.ErrInvalid, once errors.Is supports it
-	ErrPermission  = fs.ErrPermission
-	ErrExist       = fs.ErrExist
-	ErrNotExist    = fs.ErrNotExist
-	ErrClosed      = fs.ErrClosed
-	ErrIsDir       = syscall.EISDIR
-	ErrNotDir      = syscall.ENOTDIR
-	ErrNotEmpty    = syscall.ENOTEMPTY
-	ErrUnsupported = syscall.ENOSYS
+	ErrInvalid    = syscall.EINVAL // TODO update to fs.ErrInvalid, once errors.Is supports it
+	ErrPermission = fs.ErrPermission
+	ErrExist      = fs.ErrExist
+	ErrNotExist   = fs.ErrNotExist
+	ErrClosed     = fs.ErrClosed
+
+	ErrIsDir          = syscall.EISDIR
+	ErrNotDir         = syscall.ENOTDIR
+	ErrNotEmpty       = syscall.ENOTEMPTY
+	ErrNotImplemented = syscall.ENOSYS
 
 	SkipDir = fs.SkipDir
 )

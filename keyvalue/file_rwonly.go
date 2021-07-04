@@ -47,7 +47,7 @@ type writeOnlyFile struct {
 
 func (w *writeOnlyFile) Read(p []byte) (n int, err error) {
 	// Read is required by hackpadfs.File
-	return 0, &hackpadfs.PathError{Op: "read", Path: w.file.path, Err: hackpadfs.ErrUnsupported}
+	return 0, &hackpadfs.PathError{Op: "read", Path: w.file.path, Err: hackpadfs.ErrNotImplemented}
 }
 
 func (w *writeOnlyFile) Close() error {

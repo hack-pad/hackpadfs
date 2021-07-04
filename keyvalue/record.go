@@ -66,7 +66,7 @@ func (b *BaseFileRecord) Data() (blob.Blob, error) {
 		if b.mode.IsDir() {
 			return nil, hackpadfs.ErrIsDir
 		}
-		return nil, hackpadfs.ErrUnsupported
+		return nil, hackpadfs.ErrNotImplemented
 	}
 	return b.getData()
 }
@@ -76,7 +76,7 @@ func (b *BaseFileRecord) ReadDirNames() ([]string, error) {
 		if !b.mode.IsDir() {
 			return nil, hackpadfs.ErrNotDir
 		}
-		return nil, hackpadfs.ErrUnsupported
+		return nil, hackpadfs.ErrNotImplemented
 	}
 	return b.getDirNames()
 }

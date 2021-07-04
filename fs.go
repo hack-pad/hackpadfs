@@ -117,7 +117,7 @@ func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
 	if fs, ok := fs.(OpenFileFS); ok {
 		return fs.OpenFile(name, flag, perm)
 	}
-	return nil, ErrUnsupported
+	return nil, ErrNotImplemented
 }
 
 func Create(fs FS, name string) (File, error) {
@@ -131,7 +131,7 @@ func Mkdir(fs FS, name string, perm FileMode) error {
 	if fs, ok := fs.(MkdirFS); ok {
 		return fs.Mkdir(name, perm)
 	}
-	return &PathError{Op: "mkdir", Path: name, Err: ErrUnsupported}
+	return &PathError{Op: "mkdir", Path: name, Err: ErrNotImplemented}
 }
 
 func MkdirAll(fs FS, path string, perm FileMode) error {
@@ -156,21 +156,21 @@ func Remove(fs FS, name string) error {
 	if fs, ok := fs.(RemoveFS); ok {
 		return fs.Remove(name)
 	}
-	return &PathError{Op: "remove", Path: name, Err: ErrUnsupported}
+	return &PathError{Op: "remove", Path: name, Err: ErrNotImplemented}
 }
 
 func RemoveAll(fs FS, path string) error {
 	if fs, ok := fs.(RemoveAllFS); ok {
 		return fs.RemoveAll(path)
 	}
-	return &PathError{Op: "removeall", Path: path, Err: ErrUnsupported}
+	return &PathError{Op: "removeall", Path: path, Err: ErrNotImplemented}
 }
 
 func Rename(fs FS, oldName, newName string) error {
 	if fs, ok := fs.(RenameFS); ok {
 		return fs.Rename(oldName, newName)
 	}
-	return &LinkError{Op: "rename", Old: oldName, New: newName, Err: ErrUnsupported}
+	return &LinkError{Op: "rename", Old: oldName, New: newName, Err: ErrNotImplemented}
 }
 
 func Stat(fs FS, name string) (FileInfo, error) {
@@ -189,7 +189,7 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 	if fs, ok := fs.(LstatFS); ok {
 		return fs.Lstat(name)
 	}
-	return nil, &PathError{Op: "lstat", Path: name, Err: ErrUnsupported}
+	return nil, &PathError{Op: "lstat", Path: name, Err: ErrNotImplemented}
 }
 
 func LstatOrStat(fs FS, name string) (FileInfo, error) {
@@ -197,7 +197,7 @@ func LstatOrStat(fs FS, name string) (FileInfo, error) {
 		return fs.LstatOrStat(name)
 	}
 	info, err := Lstat(fs, name)
-	if errors.Is(err, ErrUnsupported) {
+	if errors.Is(err, ErrNotImplemented) {
 		info, err = Stat(fs, name)
 	}
 	return info, err
@@ -257,5 +257,5 @@ func Symlink(fs FS, oldname, newname string) error {
 	if fs, ok := fs.(SymlinkFS); ok {
 		return fs.Symlink(oldname, newname)
 	}
-	return &LinkError{Op: "symlink", Old: oldname, New: newname, Err: ErrUnsupported}
+	return &LinkError{Op: "symlink", Old: oldname, New: newname, Err: ErrNotImplemented}
 }
