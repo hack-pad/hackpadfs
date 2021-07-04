@@ -1,6 +1,7 @@
 package fstest
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -84,6 +85,45 @@ func TestConcurrentOpenFileCreate(tb testing.TB, setup SetupFSFunc) {
 			if assert.NoError(tb, err) {
 				assert.NoError(tb, f.Close())
 			}
+		})
+	})
+}
+
+func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
+	removeFS := func(tb testing.TB, commit func() hackpadfs.FS) hackpadfs.RemoveFS {
+		if fs, ok := commit().(hackpadfs.RemoveFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a RemoveFS")
+		return nil
+	}
+
+	tbRun(tb, "same file path", func(tb testing.TB) {
+		setupFS, commit := setup(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
+		fs := removeFS(tb, commit)
+		concurrentTasks(0, func(i int) {
+			err := fs.Remove("foo")
+			assert.Equal(tb, true, err == nil || errors.Is(err, hackpadfs.ErrNotExist))
+		})
+	})
+
+	tbRun(tb, "different file paths", func(tb testing.TB) {
+		setupFS, commit := setup(tb)
+		const fileCount = defaultConcurrentTasks
+		for i := 0; i < fileCount; i++ {
+			f, err := hackpadfs.Create(setupFS, fmt.Sprintf("foo-%d", i))
+			if assert.NoError(tb, err) {
+				assert.NoError(tb, f.Close())
+			}
+		}
+		fs := removeFS(tb, commit)
+		concurrentTasks(fileCount, func(i int) {
+			err := fs.Remove(fmt.Sprintf("foo-%d", i))
+			assert.NoError(tb, err)
 		})
 	})
 }
