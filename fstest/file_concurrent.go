@@ -103,3 +103,24 @@ func TestConcurrentFileWrite(tb testing.TB, setup SetupFSFunc) {
 		})
 	})
 }
+
+func TestConcurrentFileStat(tb testing.TB, setup SetupFSFunc) {
+	setupFS, commit := setup(tb)
+	f, err := hackpadfs.Create(setupFS, "foo")
+	if assert.NoError(tb, err) {
+		assert.NoError(tb, f.Close())
+	}
+	fs := commit()
+	concurrentTasks(0, func(i int) {
+		f, err := fs.Open("foo")
+		if assert.NoError(tb, err) {
+			info, err := f.Stat()
+			assert.NoError(tb, err)
+			assert.Equal(tb, quickInfo{
+				Name: "foo",
+				Mode: 0666,
+			}, asQuickInfo(info))
+			assert.NoError(tb, f.Close())
+		}
+	})
+}

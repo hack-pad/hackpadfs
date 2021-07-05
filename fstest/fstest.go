@@ -139,6 +139,8 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("fs_concurrent.Mkdir", TestConcurrentMkdir).Run(tb, options)
 	newSubtask("fs_concurrent.MkdirAll", TestConcurrentMkdirAll).Run(tb, options)
 	newSubtask("fs_concurrent.Remove", TestConcurrentRemove).Run(tb, options)
+
 	newSubtask("file_concurrent.Read", TestConcurrentFileRead).Run(tb, options)
 	newSubtask("file_concurrent.Write", TestConcurrentFileWrite).Run(tb, options)
+	newSubtask("file_concurrent.Stat", TestConcurrentFileStat).Run(tb, options)
 }
