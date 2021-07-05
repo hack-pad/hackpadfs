@@ -27,7 +27,10 @@ type mapRecord struct {
 	modTime time.Time
 }
 
-func (m mapRecord) Data() (blob.Blob, error) { return m.data, nil }
+func (m mapRecord) Data() (blob.Blob, error) {
+	return blob.NewBytes(m.data.Bytes()).Slice(0, int64(m.data.Len()))
+}
+
 func (m mapRecord) Size() int64              { return int64(m.data.Len()) }
 func (m mapRecord) Mode() hackpadfs.FileMode { return m.mode }
 func (m mapRecord) ModTime() time.Time       { return m.modTime }
