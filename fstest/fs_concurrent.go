@@ -127,3 +127,57 @@ func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
 		})
 	})
 }
+
+func TestConcurrentMkdir(tb testing.TB, setup SetupFSFunc) {
+	mkdirFS := func(tb testing.TB) hackpadfs.MkdirFS {
+		_, commit := setup(tb)
+		if fs, ok := commit().(hackpadfs.MkdirFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a MkdirFS")
+		return nil
+	}
+
+	tbRun(tb, "same file path", func(tb testing.TB) {
+		fs := mkdirFS(tb)
+		concurrentTasks(0, func(i int) {
+			err := fs.Mkdir("foo", 0777)
+			assert.Equal(tb, true, err == nil || errors.Is(err, hackpadfs.ErrExist))
+		})
+	})
+
+	tbRun(tb, "different file paths", func(tb testing.TB) {
+		fs := mkdirFS(tb)
+		concurrentTasks(0, func(i int) {
+			err := fs.Mkdir(fmt.Sprintf("foo-%d", i), 0777)
+			assert.NoError(tb, err)
+		})
+	})
+}
+
+func TestConcurrentMkdirAll(tb testing.TB, setup SetupFSFunc) {
+	mkdirAllFS := func(tb testing.TB) hackpadfs.MkdirAllFS {
+		_, commit := setup(tb)
+		if fs, ok := commit().(hackpadfs.MkdirAllFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a MkdirAllFS")
+		return nil
+	}
+
+	tbRun(tb, "same file path", func(tb testing.TB) {
+		fs := mkdirAllFS(tb)
+		concurrentTasks(0, func(i int) {
+			err := fs.MkdirAll("foo", 0777)
+			assert.NoError(tb, err)
+		})
+	})
+
+	tbRun(tb, "different file paths", func(tb testing.TB) {
+		fs := mkdirAllFS(tb)
+		concurrentTasks(0, func(i int) {
+			err := fs.MkdirAll(fmt.Sprintf("foo-%d", i), 0777)
+			assert.NoError(tb, err)
+		})
+	})
+}
