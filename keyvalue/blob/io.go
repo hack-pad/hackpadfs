@@ -2,18 +2,22 @@ package blob
 
 import "io"
 
+// Reader reads a Blob of up to 'length' bytes.
 type Reader interface {
 	ReadBlob(length int) (blob Blob, n int, err error)
 }
 
+// ReaderAt reads a Blob of up to 'length' bytes starting from this reader's 'srcOffset'.
 type ReaderAt interface {
 	ReadBlobAt(length int, srcOffset int64) (blob Blob, n int, err error)
 }
 
+// Writer writes 'src' to this writer.
 type Writer interface {
 	WriteBlob(src Blob) (n int, err error)
 }
 
+// WriterAt writes 'src' to this writer starting at 'destOffset'.
 type WriterAt interface {
 	WriteBlobAt(src Blob, destOffset int64) (n int, err error)
 }

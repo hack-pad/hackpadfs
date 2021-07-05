@@ -2,6 +2,7 @@
 package fstest
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/hack-pad/hackpadfs"
@@ -26,6 +27,8 @@ type FSOptions struct {
 	// TODO add a "skip" func, enables checking a test matrix before running
 }
 
+// SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
+// This FS is used to initialize a test's environment.
 type SetupFS interface {
 	hackpadfs.FS
 	hackpadfs.OpenFileFS
@@ -34,18 +37,17 @@ type SetupFS interface {
 	hackpadfs.ChtimesFS
 }
 
-type SetupFSFunc func(tb testing.TB) (SetupFS, func() hackpadfs.FS)
+// SetupFSFunc returns a new SetupFS and a "commit" function.
+// SetupFS is used to initialize a test's environment with the necessary files and metadata.
+// commit() creates the FS under test from those setup files.
+type SetupFSFunc func(tb testing.TB) (setupFS SetupFS, commit func() hackpadfs.FS)
 
-func FS(tb testing.TB, options FSOptions) {
-	tb.Helper()
-
+func setupOptions(options *FSOptions) error {
 	if options.Name == "" {
-		tb.Error("FS test name is required")
-		return
+		return errors.New("FS test name is required")
 	}
 	if options.TestFS == nil && options.SetupFS == nil {
-		tb.Error("TestFS func is required")
-		return
+		return errors.New("TestFS func is required")
 	}
 	if options.SetupFS == nil {
 		// Default will call TestFS() once for setup, then return the same one for the test itself.
@@ -54,11 +56,38 @@ func FS(tb testing.TB, options FSOptions) {
 			return fs, func() hackpadfs.FS { return fs }
 		}
 	}
+	return nil
+}
 
+// FS runs file system tests. All FS interfaces from hackpadfs.*FS are tested.
+func FS(tb testing.TB, options FSOptions) {
+	tb.Helper()
+
+	err := setupOptions(&options)
+	if err != nil {
+		tb.Fatal(err)
+		return
+	}
 	tbRun(tb, options.Name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFS(tb, options)
+	})
+}
+
+// File runs file tests. All File interfaces from hackpadfs.*File are tested.
+func File(tb testing.TB, options FSOptions) {
+	tb.Helper()
+
+	err := setupOptions(&options)
+	if err != nil {
+		tb.Fatal(err)
+		return
+	}
+	tbRun(tb, options.Name, func(tb testing.TB) {
+		tbParallel(tb)
+		tb.Helper()
+		runFile(tb, options)
 	})
 }
 
@@ -109,7 +138,6 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("base fs.Mkdir", TestBaseMkdir).Run(tb, options)
 	newSubtask("base fs.Chmod", TestBaseChmod).Run(tb, options)
 	newSubtask("base fs.Chtimes", TestBaseChtimes).Run(tb, options)
-	newSubtask("base file.Close", TestFileClose).Run(tb, options)
 
 	newSubtask("fs.Create", TestCreate).Run(tb, options)
 	newSubtask("fs.Mkdir", TestMkdir).Run(tb, options)
@@ -124,6 +152,16 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("fs.Chtimes", TestChtimes).Run(tb, options)
 	// TODO Symlink
 
+	newSubtask("fs_concurrent.Create", TestConcurrentCreate).Run(tb, options)
+	newSubtask("fs_concurrent.OpenFileCreate", TestConcurrentOpenFileCreate).Run(tb, options)
+	newSubtask("fs_concurrent.Mkdir", TestConcurrentMkdir).Run(tb, options)
+	newSubtask("fs_concurrent.MkdirAll", TestConcurrentMkdirAll).Run(tb, options)
+	newSubtask("fs_concurrent.Remove", TestConcurrentRemove).Run(tb, options)
+}
+
+func runFile(tb testing.TB, options FSOptions) {
+	newSubtask("base file.Close", TestFileClose).Run(tb, options)
+
 	newSubtask("file.Read", TestFileRead).Run(tb, options)
 	newSubtask("file.ReadAt", TestFileReadAt).Run(tb, options)
 	newSubtask("file.Seek", TestFileSeek).Run(tb, options)
@@ -133,12 +171,6 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("file.Stat", TestFileStat).Run(tb, options)
 	newSubtask("file.Sync", TestFileSync).Run(tb, options)
 	newSubtask("file.Truncate", TestFileTruncate).Run(tb, options)
-
-	newSubtask("fs_concurrent.Create", TestConcurrentCreate).Run(tb, options)
-	newSubtask("fs_concurrent.OpenFileCreate", TestConcurrentOpenFileCreate).Run(tb, options)
-	newSubtask("fs_concurrent.Mkdir", TestConcurrentMkdir).Run(tb, options)
-	newSubtask("fs_concurrent.MkdirAll", TestConcurrentMkdirAll).Run(tb, options)
-	newSubtask("fs_concurrent.Remove", TestConcurrentRemove).Run(tb, options)
 
 	newSubtask("file_concurrent.Read", TestConcurrentFileRead).Run(tb, options)
 	newSubtask("file_concurrent.Write", TestConcurrentFileWrite).Run(tb, options)

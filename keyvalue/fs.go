@@ -8,10 +8,12 @@ import (
 	"github.com/hack-pad/hackpadfs"
 )
 
+// FS wraps a Store as a file system.
 type FS struct {
 	store *transactionOnly
 }
 
+// NewFS returns a new FS wrapping the given 'store'.
 func NewFS(store Store) (*FS, error) {
 	return &FS{
 		store: newFSTransactioner(store),
@@ -25,6 +27,7 @@ func (fs *FS) wrapperErr(op string, path string, err error) error {
 	return &hackpadfs.PathError{Op: op, Path: path, Err: err}
 }
 
+// Mkdir implements hackpadfs.MkdirFS
 func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
 	file := fs.newDir(name, perm)
 	_, err := fs.Stat(name)
@@ -47,6 +50,7 @@ func (fs *FS) newDir(name string, perm hackpadfs.FileMode) *file {
 	return fs.newFile(name, 0, hackpadfs.ModeDir|(perm&hackpadfs.ModePerm))
 }
 
+// MkdirAll implements hackpadfs.MkdirAllFS
 func (fs *FS) MkdirAll(path string, perm hackpadfs.FileMode) error {
 	missingDirs, err := fs.findMissingDirs(path)
 	if err != nil {
@@ -124,10 +128,12 @@ func isMissingDir(path string, info hackpadfs.FileInfo, err error) (missing bool
 	}
 }
 
+// Open implements hackpadfs.FS
 func (fs *FS) Open(name string) (hackpadfs.File, error) {
 	return fs.OpenFile(name, hackpadfs.FlagReadOnly, 0)
 }
 
+// OpenFile implements hackpadfs.OpenFileFS
 func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (afFile hackpadfs.File, retErr error) {
 	paths := []string{name}
 	if flag&hackpadfs.FlagCreate != 0 {
@@ -172,6 +178,7 @@ func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (afFile h
 	return file, nil
 }
 
+// Remove implements hackpadfs.RemoveFS
 func (fs *FS) Remove(name string) error {
 	file, err := fs.getFile(name)
 	if err != nil {
@@ -190,6 +197,7 @@ func (fs *FS) Remove(name string) error {
 	return fs.setFile(name, nil)
 }
 
+// Rename implements hackpadfs.RenameFS
 func (fs *FS) Rename(oldname, newname string) error {
 	oldFile, err := fs.getFile(oldname)
 	if err != nil {
@@ -230,6 +238,7 @@ func (fs *FS) Rename(oldname, newname string) error {
 	return fs.setFile(oldname, nil)
 }
 
+// Stat implements hackpadfs.StatFS
 func (fs *FS) Stat(name string) (hackpadfs.FileInfo, error) {
 	file, err := fs.getFile(name)
 	if err != nil {
@@ -238,6 +247,7 @@ func (fs *FS) Stat(name string) (hackpadfs.FileInfo, error) {
 	return file.info(), nil
 }
 
+// Chmod implements hackpadfs.ChmodFS
 func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 	file, err := fs.getFile(name)
 	if err != nil {
@@ -250,6 +260,7 @@ func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 	return file.save()
 }
 
+// Chtimes implements hackpadfs.ChtimesFS
 func (fs *FS) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	file, err := fs.getFile(name)
 	if err != nil {

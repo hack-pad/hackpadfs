@@ -10,14 +10,18 @@ import (
 	"github.com/hack-pad/hackpadfs"
 )
 
+// FS wraps the 'os' package as an FS implementation.
 type FS struct {
 	root string
 }
 
+// NewFS returns a new FS. All file paths are relative to the root path ('/' on Unix).
+// Use fs.Sub() to select a different root path.
 func NewFS() *FS {
 	return &FS{}
 }
 
+// Sub implements hackpadfs.SubFS
 func (fs *FS) Sub(dir string) (hackpadfs.FS, error) {
 	if !hackpadfs.ValidPath(dir) {
 		return nil, &hackpadfs.PathError{Op: "sub", Path: dir, Err: hackpadfs.ErrInvalid}
@@ -55,6 +59,7 @@ func (fs *FS) wrapRelPathErr(err error) error {
 	return err
 }
 
+// Open implements hackpadfs.FS
 func (fs *FS) Open(name string) (hackpadfs.File, error) {
 	name, pathErr := fs.rootedPath("open", name)
 	if pathErr != nil {
@@ -64,6 +69,7 @@ func (fs *FS) Open(name string) (hackpadfs.File, error) {
 	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
+// OpenFile implements hackpadfs.OpenFileFS
 func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (hackpadfs.File, error) {
 	name, pathErr := fs.rootedPath("open", name)
 	if pathErr != nil {
@@ -73,6 +79,7 @@ func (fs *FS) OpenFile(name string, flag int, perm hackpadfs.FileMode) (hackpadf
 	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
+// Create implements hackpadfs.CreateFS
 func (fs *FS) Create(name string) (hackpadfs.File, error) {
 	name, pathErr := fs.rootedPath("create", name)
 	if pathErr != nil {
@@ -82,6 +89,7 @@ func (fs *FS) Create(name string) (hackpadfs.File, error) {
 	return fs.wrapFile(file), fs.wrapRelPathErr(err)
 }
 
+// Mkdir implements hackpadfs.MkdirFS
 func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
 	name, err := fs.rootedPath("mkdir", name)
 	if err != nil {
@@ -90,6 +98,7 @@ func (fs *FS) Mkdir(name string, perm hackpadfs.FileMode) error {
 	return fs.wrapRelPathErr(os.Mkdir(name, perm))
 }
 
+// MkdirAll implements hackpadfs.MkdirAllFS
 func (fs *FS) MkdirAll(path string, perm hackpadfs.FileMode) error {
 	path, err := fs.rootedPath("mkdirall", path)
 	if err != nil {
@@ -98,6 +107,7 @@ func (fs *FS) MkdirAll(path string, perm hackpadfs.FileMode) error {
 	return fs.wrapRelPathErr(os.MkdirAll(path, perm))
 }
 
+// Remove implements hackpadfs.RemoveFS
 func (fs *FS) Remove(name string) error {
 	name, err := fs.rootedPath("remove", name)
 	if err != nil {
@@ -106,6 +116,7 @@ func (fs *FS) Remove(name string) error {
 	return fs.wrapRelPathErr(os.Remove(name))
 }
 
+// RemoveAll implements hackpadfs.RemoveAllFS
 func (fs *FS) RemoveAll(name string) error {
 	name, err := fs.rootedPath("removeall", name)
 	if err != nil {
@@ -114,6 +125,7 @@ func (fs *FS) RemoveAll(name string) error {
 	return fs.wrapRelPathErr(os.RemoveAll(name))
 }
 
+// Rename implements hackpadfs.RenameFS
 func (fs *FS) Rename(oldname, newname string) error {
 	oldname, err := fs.rootedPath("", oldname)
 	if err != nil {
@@ -126,6 +138,7 @@ func (fs *FS) Rename(oldname, newname string) error {
 	return fs.wrapRelPathErr(os.Rename(oldname, newname))
 }
 
+// Stat implements hackpadfs.StatFS
 func (fs *FS) Stat(name string) (hackpadfs.FileInfo, error) {
 	name, pathErr := fs.rootedPath("stat", name)
 	if pathErr != nil {
@@ -135,6 +148,7 @@ func (fs *FS) Stat(name string) (hackpadfs.FileInfo, error) {
 	return info, fs.wrapRelPathErr(err)
 }
 
+// Lstat implements hackpadfs.LstatFS
 func (fs *FS) Lstat(name string) (hackpadfs.FileInfo, error) {
 	name, pathErr := fs.rootedPath("lstat", name)
 	if pathErr != nil {
@@ -144,6 +158,7 @@ func (fs *FS) Lstat(name string) (hackpadfs.FileInfo, error) {
 	return info, fs.wrapRelPathErr(err)
 }
 
+// Chmod implements hackpadfs.ChmodFS
 func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 	name, err := fs.rootedPath("chmod", name)
 	if err != nil {
@@ -152,6 +167,7 @@ func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 	return fs.wrapRelPathErr(os.Chmod(name, mode))
 }
 
+// Chown implements hackpadfs.ChownFS
 func (fs *FS) Chown(name string, uid, gid int) error {
 	name, err := fs.rootedPath("chown", name)
 	if err != nil {
@@ -160,6 +176,7 @@ func (fs *FS) Chown(name string, uid, gid int) error {
 	return fs.wrapRelPathErr(os.Chown(name, uid, gid))
 }
 
+// Chtimes implements hackpadfs.ChtimesFS
 func (fs *FS) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	name, err := fs.rootedPath("chtimes", name)
 	if err != nil {
@@ -168,6 +185,7 @@ func (fs *FS) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	return fs.wrapRelPathErr(os.Chtimes(name, atime, mtime))
 }
 
+// ReadDir implements hackpadfs.ReadDirFS
 func (fs *FS) ReadDir(name string) ([]hackpadfs.DirEntry, error) {
 	name, pathErr := fs.rootedPath("readdir", name)
 	if pathErr != nil {
@@ -177,6 +195,7 @@ func (fs *FS) ReadDir(name string) ([]hackpadfs.DirEntry, error) {
 	return entries, fs.wrapRelPathErr(err)
 }
 
+// ReadFile implements hackpadfs.ReadFile
 func (fs *FS) ReadFile(name string) ([]byte, error) {
 	name, pathErr := fs.rootedPath("readfile", name)
 	if pathErr != nil {
@@ -186,6 +205,7 @@ func (fs *FS) ReadFile(name string) ([]byte, error) {
 	return contents, fs.wrapRelPathErr(err)
 }
 
+// Symlink implements hackpadfs.SymlinkFS
 func (fs *FS) Symlink(oldname, newname string) error {
 	oldname, pathErr := fs.rootedPath("symlink", oldname)
 	if pathErr != nil {

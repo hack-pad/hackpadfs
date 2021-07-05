@@ -32,7 +32,7 @@ var (
 	_ FileRecord = &BaseFileRecord{}
 )
 
-// BaseFileRecord is a FileRecord
+// BaseFileRecord is a FileRecord with a convenient constructor for easier Store implementations.
 type BaseFileRecord struct {
 	getData     func() (blob.Blob, error)
 	getDirNames func() ([]string, error)
@@ -42,6 +42,13 @@ type BaseFileRecord struct {
 	sys         interface{}
 }
 
+// NewBaseFileRecord returns a new BaseFileRecord for the given file's metadata and getters.
+// getData and getDirNames may be set to nil if not applicable to this file's type.
+//
+// Initial size is the currently known byte size of the record. This value is used for optimized Stat() calls.
+// Sys may be set to nil, it's returned as the result of FileInfo.Sys().
+// 'getData' must return the contents of the file or an error if retrieval fails, but may be nil if this is a directory.
+// 'getDirNames' must return this directory's child names, but may be nil if this is a regular file.
 func NewBaseFileRecord(
 	initialSize int64,
 	modTime time.Time,
@@ -61,6 +68,7 @@ func NewBaseFileRecord(
 	}
 }
 
+// Data implements keyvalue.FileRecord
 func (b *BaseFileRecord) Data() (blob.Blob, error) {
 	if b.getData == nil {
 		if b.mode.IsDir() {
@@ -71,6 +79,7 @@ func (b *BaseFileRecord) Data() (blob.Blob, error) {
 	return b.getData()
 }
 
+// ReadDirNames implements keyvalue.FileRecord
 func (b *BaseFileRecord) ReadDirNames() ([]string, error) {
 	if b.getDirNames == nil {
 		if !b.mode.IsDir() {
@@ -81,18 +90,22 @@ func (b *BaseFileRecord) ReadDirNames() ([]string, error) {
 	return b.getDirNames()
 }
 
+// Size implements keyvalue.FileRecord
 func (b *BaseFileRecord) Size() int64 {
 	return b.initialSize
 }
 
+// Mode implements keyvalue.FileRecord
 func (b *BaseFileRecord) Mode() hackpadfs.FileMode {
 	return b.mode
 }
 
+// ModTime implements keyvalue.FileRecord
 func (b *BaseFileRecord) ModTime() time.Time {
 	return b.modTime
 }
 
+// Sys implements keyvalue.FileRecord
 func (b *BaseFileRecord) Sys() interface{} {
 	return b.sys
 }

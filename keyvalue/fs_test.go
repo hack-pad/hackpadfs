@@ -7,7 +7,8 @@ import (
 )
 
 func TestFS(t *testing.T) {
-	fstest.FS(t, fstest.FSOptions{
+	t.Parallel()
+	options := fstest.FSOptions{
 		Name: "keyvalue",
 		TestFS: func(tb testing.TB) fstest.SetupFS {
 			fs, err := NewFS(newMapStore(tb))
@@ -16,5 +17,7 @@ func TestFS(t *testing.T) {
 			}
 			return fs
 		},
-	})
+	}
+	fstest.FS(t, options)
+	fstest.File(t, options)
 }

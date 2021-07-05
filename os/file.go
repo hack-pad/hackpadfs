@@ -18,10 +18,12 @@ func (fs *FS) wrapFile(f *os.File) hackpadfs.File {
 	return &file{fs: fs, osFile: f}
 }
 
+// Chmod implements hackpadfs.ChmoderFile
 func (f *file) Chmod(mode hackpadfs.FileMode) error {
 	return f.fs.wrapRelPathErr(f.osFile.Chmod(mode))
 }
 
+// Chown implements hackpadfs.ChownerFile
 func (f *file) Chown(uid, gid int) error {
 	return f.fs.wrapRelPathErr(f.osFile.Chown(uid, gid))
 }
@@ -30,10 +32,12 @@ func (f *file) Close() error {
 	return f.fs.wrapRelPathErr(f.osFile.Close())
 }
 
+// Fd() returns this file's file descriptor.
 func (f *file) Fd() uintptr {
 	return f.osFile.Fd()
 }
 
+// Name returns this file's name.
 func (f *file) Name() string {
 	return f.osFile.Name()
 }
@@ -58,6 +62,7 @@ func (f *file) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, f.fs.wrapRelPathErr(err)
 }
 
+// Seek implements hackpadfs.SeekerFile
 func (f *file) Seek(offset int64, whence int) (ret int64, err error) {
 	ret, err = f.osFile.Seek(offset, whence)
 	return ret, f.fs.wrapRelPathErr(err)
@@ -75,11 +80,13 @@ func (f *file) SetWriteDeadline(t time.Time) error {
 	return f.fs.wrapRelPathErr(f.osFile.SetWriteDeadline(t))
 }
 
+// Stat implements hackpadfs.StaterFile
 func (f *file) Stat() (hackpadfs.FileInfo, error) {
 	info, err := f.osFile.Stat()
 	return info, f.fs.wrapRelPathErr(err)
 }
 
+// Sync implements hackpadfs.SycnerFile
 func (f *file) Sync() error {
 	return f.fs.wrapRelPathErr(f.osFile.Sync())
 }
@@ -89,6 +96,7 @@ func (f *file) SyscallConn() (syscall.RawConn, error) {
 	return conn, f.fs.wrapRelPathErr(err)
 }
 
+// Truncate implements hackpadfs.TruncaterFile
 func (f *file) Truncate(size int64) error {
 	return f.fs.wrapRelPathErr(f.osFile.Truncate(size))
 }

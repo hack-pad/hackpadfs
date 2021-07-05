@@ -284,6 +284,7 @@ func testFileWrite(tb testing.TB, setup SetupFSFunc, writer func(hackpadfs.File,
 
 	fs := commit()
 	f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+	assert.NoError(tb, err)
 	n, err := writer(f, []byte(fileContents))
 	assert.Equal(tb, len(fileContents), n)
 	assert.NoError(tb, err)
@@ -472,7 +473,9 @@ func TestFileReadDir(tb testing.TB, setup SetupFSFunc) {
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
 
-		entries := append(entries1, entries2...)
+		var entries []hackpadfs.DirEntry
+		entries = append(entries, entries1...)
+		entries = append(entries, entries2...)
 		sort.SliceStable(entries, func(a, b int) bool {
 			return entries[a].Name() < entries[b].Name()
 		})

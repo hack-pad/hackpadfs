@@ -6,21 +6,28 @@ import (
 	"sync/atomic"
 )
 
+// TransactionStore is a Store that can create a Transaction.
 type TransactionStore interface {
 	Store
 	Transaction() (Transaction, error)
 }
 
+// OpID is a unique ID within the transaction that generated it. It's used to correlate which Get/Set operation produced which result.
 type OpID int64
 
+// OpResult is returned from Transaction.Commit(), representing an operation's result with any data or error it produced.
 type OpResult struct {
 	Op     OpID
 	Record FileRecord
 	Err    error
 }
 
+// OpHandler processes 'result' during the commit process of 'txn'.
+// If the transaction should not proceed, the handler should call txn.Abort().
 type OpHandler func(txn Transaction, result OpResult) error
 
+// Transaction behaves like a Store but only takes action and returns results after running Commit().
+// GetHandler and SetHandler can be used to pause transaction processing and handle the response, permitting an opportunity to Abort().
 type Transaction interface {
 	Get(path string) OpID
 	GetHandler(path string, handler OpHandler) OpID
@@ -40,7 +47,7 @@ type unsafeSerialTransaction struct {
 }
 
 // TransactionOrSerial attempts to produce a Transaction from 'store'.
-// If unsupported, returns an unsafe transaction instead, whic runs each action serially without transactional safety.
+// If unsupported, returns an unsafe transaction instead, which runs each action serially without transactional safety.
 //
 // This is used in FS to attempt transactions whenever possible.
 // Since some Stores don't need transactions, they aren't required to implement TransactionStore.

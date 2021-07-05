@@ -41,6 +41,7 @@ type TruncateBlob interface {
 	Truncate(size int64) error
 }
 
+// View attempts to call an optimized blob.View(), falls back to copying into Bytes and running Bytes.View().
 func View(b Blob, start, end int64) (Blob, error) {
 	if b, ok := b.(ViewBlob); ok {
 		return b.View(start, end)
@@ -48,6 +49,7 @@ func View(b Blob, start, end int64) (Blob, error) {
 	return NewBytes(b.Bytes()).View(start, end)
 }
 
+// Slice attempts to call an optimized blob.Slice(), falls back to copying into Bytes and running Bytes.Slice().
 func Slice(b Blob, start, end int64) (Blob, error) {
 	if b, ok := b.(SliceBlob); ok {
 		return b.Slice(start, end)
@@ -55,6 +57,7 @@ func Slice(b Blob, start, end int64) (Blob, error) {
 	return NewBytes(b.Bytes()).Slice(start, end)
 }
 
+// Set attempts to call an optimized blob.Set(), falls back to copying into Bytes and running Bytes.Set().
 func Set(dest Blob, src Blob, offset int64) (n int, err error) {
 	if dest, ok := dest.(SetBlob); ok {
 		return dest.Set(src, offset)
@@ -62,6 +65,7 @@ func Set(dest Blob, src Blob, offset int64) (n int, err error) {
 	return NewBytes(dest.Bytes()).Set(src, offset)
 }
 
+// Grow attempts to call an optimized blob.Grow(), falls back to copying into Bytes and running Bytes.Grow().
 func Grow(b Blob, offset int64) error {
 	if b, ok := b.(GrowBlob); ok {
 		return b.Grow(offset)
@@ -69,6 +73,7 @@ func Grow(b Blob, offset int64) error {
 	return NewBytes(b.Bytes()).Grow(offset)
 }
 
+// Truncate attempts to call an optimized blob.Truncate(), falls back to copying into Bytes and running Bytes.Truncate().
 func Truncate(b Blob, size int64) error {
 	if b, ok := b.(TruncateBlob); ok {
 		return b.Truncate(size)

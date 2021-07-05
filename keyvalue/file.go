@@ -23,9 +23,8 @@ var (
 
 type file struct {
 	*fileData
-	offset   int64
-	flag     int
-	dirCount int
+	offset int64
+	flag   int
 }
 
 type fileData struct {

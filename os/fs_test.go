@@ -9,12 +9,13 @@ import (
 )
 
 func TestFSTest(t *testing.T) {
+	t.Parallel()
 	oldmask := setUmask(0)
 	t.Cleanup(func() {
 		setUmask(oldmask)
 	})
 
-	fstest.FS(t, fstest.FSOptions{
+	options := fstest.FSOptions{
 		Name: "osfs.FS",
 		TestFS: func(tb testing.TB) fstest.SetupFS {
 			dir := tb.TempDir()
@@ -25,5 +26,7 @@ func TestFSTest(t *testing.T) {
 			}
 			return fs.(*FS)
 		},
-	})
+	}
+	fstest.FS(t, options)
+	fstest.File(t, options)
 }

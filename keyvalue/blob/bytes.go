@@ -17,6 +17,7 @@ var (
 	} = &Bytes{}
 )
 
+// Bytes is a Blob that wraps a byte slice.
 type Bytes struct {
 	bytes []byte
 }
@@ -32,14 +33,17 @@ func NewBytesLength(length int) *Bytes {
 	return NewBytes(make([]byte, length))
 }
 
+// Bytes implements Blob.
 func (b *Bytes) Bytes() []byte {
 	return b.bytes
 }
 
+// Len implements Blob.
 func (b *Bytes) Len() int {
 	return len(b.bytes)
 }
 
+// View implements Blob.
 func (b *Bytes) View(start, end int64) (Blob, error) {
 	if start < 0 || start > int64(len(b.bytes)) {
 		return nil, fmt.Errorf("Start index out of bounds: %d", start)
@@ -50,6 +54,7 @@ func (b *Bytes) View(start, end int64) (Blob, error) {
 	return NewBytes(b.bytes[start:end]), nil
 }
 
+// Slice implements Blob.
 func (b *Bytes) Slice(start, end int64) (Blob, error) {
 	if start < 0 || start > int64(len(b.bytes)) {
 		return nil, fmt.Errorf("Start index out of bounds: %d", start)
@@ -62,6 +67,7 @@ func (b *Bytes) Slice(start, end int64) (Blob, error) {
 	return NewBytes(buf), nil
 }
 
+// Set implements Blob.
 func (b *Bytes) Set(dest Blob, srcStart int64) (n int, err error) {
 	if srcStart < 0 {
 		return 0, errors.New("negative offset")
@@ -73,11 +79,13 @@ func (b *Bytes) Set(dest Blob, srcStart int64) (n int, err error) {
 	return n, nil
 }
 
+// Grow implements Blob.
 func (b *Bytes) Grow(offset int64) error {
 	b.bytes = append(b.bytes, make([]byte, offset)...)
 	return nil
 }
 
+// Truncate implements Blob.
 func (b *Bytes) Truncate(size int64) error {
 	if int64(len(b.bytes)) < size {
 		return nil
