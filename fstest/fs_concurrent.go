@@ -27,9 +27,9 @@ func concurrentTasks(count int, task func(int)) {
 	wg.Wait()
 }
 
-func TestConcurrentCreate(tb testing.TB, setup SetupFSFunc) {
+func TestConcurrentCreate(tb testing.TB, setup TestSetup) {
 	createFS := func(tb testing.TB) hackpadfs.CreateFS {
-		_, commit := setup(tb)
+		_, commit := setup.FS(tb)
 		if fs, ok := commit().(hackpadfs.CreateFS); ok {
 			return fs
 		}
@@ -58,9 +58,9 @@ func TestConcurrentCreate(tb testing.TB, setup SetupFSFunc) {
 	})
 }
 
-func TestConcurrentOpenFileCreate(tb testing.TB, setup SetupFSFunc) {
+func TestConcurrentOpenFileCreate(tb testing.TB, setup TestSetup) {
 	openFileFS := func(tb testing.TB) hackpadfs.OpenFileFS {
-		_, commit := setup(tb)
+		_, commit := setup.FS(tb)
 		if fs, ok := commit().(hackpadfs.OpenFileFS); ok {
 			return fs
 		}
@@ -89,7 +89,7 @@ func TestConcurrentOpenFileCreate(tb testing.TB, setup SetupFSFunc) {
 	})
 }
 
-func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
+func TestConcurrentRemove(tb testing.TB, setup TestSetup) {
 	removeFS := func(tb testing.TB, commit func() hackpadfs.FS) hackpadfs.RemoveFS {
 		if fs, ok := commit().(hackpadfs.RemoveFS); ok {
 			return fs
@@ -99,7 +99,7 @@ func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
 	}
 
 	tbRun(tb, "same file path", func(tb testing.TB) {
-		setupFS, commit := setup(tb)
+		setupFS, commit := setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, f.Close())
@@ -112,7 +112,7 @@ func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
 	})
 
 	tbRun(tb, "different file paths", func(tb testing.TB) {
-		setupFS, commit := setup(tb)
+		setupFS, commit := setup.FS(tb)
 		const fileCount = defaultConcurrentTasks
 		for i := 0; i < fileCount; i++ {
 			f, err := hackpadfs.Create(setupFS, fmt.Sprintf("foo-%d", i))
@@ -128,9 +128,9 @@ func TestConcurrentRemove(tb testing.TB, setup SetupFSFunc) {
 	})
 }
 
-func TestConcurrentMkdir(tb testing.TB, setup SetupFSFunc) {
+func TestConcurrentMkdir(tb testing.TB, setup TestSetup) {
 	mkdirFS := func(tb testing.TB) hackpadfs.MkdirFS {
-		_, commit := setup(tb)
+		_, commit := setup.FS(tb)
 		if fs, ok := commit().(hackpadfs.MkdirFS); ok {
 			return fs
 		}
@@ -155,9 +155,9 @@ func TestConcurrentMkdir(tb testing.TB, setup SetupFSFunc) {
 	})
 }
 
-func TestConcurrentMkdirAll(tb testing.TB, setup SetupFSFunc) {
+func TestConcurrentMkdirAll(tb testing.TB, setup TestSetup) {
 	mkdirAllFS := func(tb testing.TB) hackpadfs.MkdirAllFS {
-		_, commit := setup(tb)
+		_, commit := setup.FS(tb)
 		if fs, ok := commit().(hackpadfs.MkdirAllFS); ok {
 			return fs
 		}

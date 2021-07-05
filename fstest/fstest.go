@@ -17,12 +17,12 @@ type FSOptions struct {
 	// Cleanup should be run via tb.Cleanup() tasks.
 	TestFS func(tb testing.TB) SetupFS
 
-	// SetupFS returns an FS that can prepare files and a commit function.
+	// Setup returns an FS that can prepare files and a commit function. Required of TestFS is not set.
 	// When commit is called, SetupFS's changes must be copied into a new test FS (like TestFS does) and return it.
 	//
 	// In many cases, this is not needed and all preparation can be done with only the TestFS() option.
 	// However, in more niche file systems like a read-only FS, it is necessary to commit files to a normal FS, then copy them into a read-only store.
-	SetupFS SetupFSFunc
+	Setup TestSetup
 
 	// TODO add a "skip" func, enables checking a test matrix before running
 }
@@ -37,24 +37,34 @@ type SetupFS interface {
 	hackpadfs.ChtimesFS
 }
 
-// SetupFSFunc returns a new SetupFS and a "commit" function.
+// TestSetup returns a new SetupFS and a "commit" function.
 // SetupFS is used to initialize a test's environment with the necessary files and metadata.
 // commit() creates the FS under test from those setup files.
-type SetupFSFunc func(tb testing.TB) (setupFS SetupFS, commit func() hackpadfs.FS)
+type TestSetup interface {
+	FS(tb testing.TB) (setupFS SetupFS, commit func() hackpadfs.FS)
+}
+
+// TestSetupFunc is an adapter to use a function as a TestSetup.
+type TestSetupFunc func(tb testing.TB) (SetupFS, func() hackpadfs.FS)
+
+// FS implements TestSetup
+func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
+	return fn(tb)
+}
 
 func setupOptions(options *FSOptions) error {
 	if options.Name == "" {
 		return errors.New("FS test name is required")
 	}
-	if options.TestFS == nil && options.SetupFS == nil {
+	if options.TestFS == nil && options.Setup == nil {
 		return errors.New("TestFS func is required")
 	}
-	if options.SetupFS == nil {
+	if options.Setup == nil {
 		// Default will call TestFS() once for setup, then return the same one for the test itself.
-		options.SetupFS = func(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
+		options.Setup = TestSetupFunc(func(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 			fs := options.TestFS(tb)
 			return fs, func() hackpadfs.FS { return fs }
-		}
+		})
 	}
 	return nil
 }
@@ -114,7 +124,7 @@ func tbRun(tb testing.TB, name string, subtest func(tb testing.TB)) {
 	}
 }
 
-type subtaskFunc func(tb testing.TB, setup SetupFSFunc)
+type subtaskFunc func(tb testing.TB, setup TestSetup)
 
 type tbSubtask struct {
 	Name string
@@ -129,7 +139,7 @@ func (task *tbSubtask) Run(tb testing.TB, options FSOptions) {
 	tbRun(tb, task.Name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
-		task.Task(tb, options.SetupFS)
+		task.Task(tb, options.Setup)
 	})
 }
 
