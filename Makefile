@@ -31,5 +31,5 @@ test: test-deps
 	GOOS=js GOARCH=wasm go test -cover ./...
 	@if [[ "$$CI" == true ]]; then \
 		set -ex; \
-		goveralls -coverprofile=covprofile -service=github; \
+		goveralls -coverprofile=cover.out -service=github; \
 	fi
