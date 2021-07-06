@@ -46,7 +46,10 @@ func TestWasmTags(t *testing.T) {
 				t.Logf("Build constraint failed to parse line in file %q: %q; %v", path, line, err)
 				continue
 			}
-			if isExcludeWasm(expr) {
+			isWasm := expr.Eval(func(tag string) bool {
+				return tag == "wasm"
+			})
+			if !isWasm {
 				break
 			}
 		}
@@ -55,11 +58,4 @@ func TestWasmTags(t *testing.T) {
 	if walkErr != nil {
 		t.Error("Walk failed:", walkErr)
 	}
-}
-
-func isExcludeWasm(expr constraint.Expr) bool {
-	if expr, ok := expr.(*constraint.NotExpr); ok {
-		return expr.X.String() == "wasm"
-	}
-	return false
 }
