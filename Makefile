@@ -1,6 +1,7 @@
 BROWSERTEST_VERSION = v0.3.5
 LINT_VERSION = 1.41.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
+SHELL = bash
 
 .PHONY: all
 all: lint test
@@ -22,8 +23,13 @@ test-deps:
 		go install github.com/agnivade/wasmbrowsertest@${BROWSERTEST_VERSION}; \
 		ln -s "${GO_BIN}/wasmbrowsertest" "${GO_BIN}/go_js_wasm_exec"; \
 	fi
+	@go install github.com/mattn/goveralls@v0.0.9
 
 .PHONY: test
 test: test-deps
-	go test -race -cover ./...
+	go test -race -coverprofile=cover.out ./...
 	GOOS=js GOARCH=wasm go test -cover ./...
+	@if [[ "$$CI" == true ]]; then \
+		set -ex; \
+		goveralls -coverprofile=cover.out -service=github; \
+	fi
