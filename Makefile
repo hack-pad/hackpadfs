@@ -27,6 +27,7 @@ test-deps:
 
 .PHONY: test
 test: test-deps
+	go test .  # Run library-level checks first, for more helpful build tag failure messages.
 	go test -race -coverprofile=cover.out ./...
 	GOOS=js GOARCH=wasm go test -cover ./...
 	@if [[ "$$CI" == true ]]; then \
