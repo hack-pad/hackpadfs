@@ -12,15 +12,37 @@ import (
 	"testing"
 )
 
+var (
+	noWasm = []string{
+		"os/*_test.go",
+	}
+	yesWasm = []string{
+		"indexeddb/*",
+		"internal/exception/*",
+	}
+)
+
+func shouldBeWasm(path string) (isWasm, skip bool) {
+	for _, glob := range yesWasm {
+		if match, _ := filepath.Match(glob, path); match {
+			return true, false
+		}
+	}
+	for _, glob := range noWasm {
+		if match, _ := filepath.Match(glob, path); match {
+			return false, false
+		}
+	}
+	return false, true
+}
+
 func TestWasmTags(t *testing.T) {
 	walkErr := filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
-		switch {
-		case err != nil:
+		if err != nil || info.IsDir() {
 			return err
-		case !(strings.HasPrefix(filepath.FromSlash(path), "os/") && strings.HasSuffix(path, "_test.go")):
-			// For now, only scan os/*_test.go files. May expand later to other packages and tests that call unimplemented JS functions.
-			return nil
-		case info.IsDir():
+		}
+		shouldBeWasm, skip := shouldBeWasm(path)
+		if skip {
 			return nil
 		}
 
@@ -37,7 +59,11 @@ func TestWasmTags(t *testing.T) {
 			}
 			if !strings.HasPrefix(line, "//") {
 				// hit non-comment line, so no build tags exist (see https://golang.org/cmd/go/#hdr-Build_constraints)
-				t.Errorf("File %q does not contain a !wasm build tag", path)
+				tag := "wasm"
+				if !shouldBeWasm {
+					tag = "!wasm"
+				}
+				t.Errorf("File %q does not contain a %s build tag", path, tag)
 				break
 			}
 
@@ -49,7 +75,7 @@ func TestWasmTags(t *testing.T) {
 			isWasm := expr.Eval(func(tag string) bool {
 				return tag == "wasm"
 			})
-			if !isWasm {
+			if isWasm == shouldBeWasm {
 				break
 			}
 		}
