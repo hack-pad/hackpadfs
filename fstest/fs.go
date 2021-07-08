@@ -141,13 +141,12 @@ func testCreate(tb testing.TB, setup TestSetup, createFn func(hackpadfs.FS, stri
 		const fileContents = `hello world`
 		setupFS, commit := setup.FS(tb)
 
-		file, err := hackpadfs.Create(setupFS, "foo")
+		file, err := hackpadfs.OpenFile(setupFS, "foo", hackpadfs.FlagReadWrite|hackpadfs.FlagCreate, 0755)
 		if assert.NoError(tb, err) {
 			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
 			assert.NoError(tb, err)
 			assert.NoError(tb, file.Close())
 		}
-		assert.NoError(tb, hackpadfs.Chmod(setupFS, "foo", 0755))
 
 		fs := commit()
 		file, err = createFn(fs, "foo")
