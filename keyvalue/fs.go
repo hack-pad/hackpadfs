@@ -15,9 +15,13 @@ type FS struct {
 
 // NewFS returns a new FS wrapping the given 'store'.
 func NewFS(store Store) (*FS, error) {
-	return &FS{
+	fs := &FS{
 		store: newFSTransactioner(store),
-	}, nil
+	}
+	if err := fs.Mkdir(".", 0666); err != nil && !errors.Is(err, hackpadfs.ErrExist) {
+		return nil, err
+	}
+	return fs, nil
 }
 
 func (fs *FS) wrapperErr(op string, path string, err error) error {
