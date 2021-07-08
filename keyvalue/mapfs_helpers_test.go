@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hack-pad/hackpadfs"
-	"github.com/hack-pad/hackpadfs/internal/assert"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
 
@@ -62,18 +61,10 @@ func (m mapRecord) String() string {
 }
 
 func newMapStore(tb testing.TB) Store {
-	store := &mapStore{
+	return &mapStore{
 		tb:      tb,
 		records: make(map[string]mapRecord),
 	}
-	err := store.Set(".", mapRecord{
-		store: store,
-		path:  ".",
-		data:  blob.NewBytes(nil),
-		mode:  hackpadfs.ModeDir | 0755,
-	})
-	assert.NoError(tb, err)
-	return store
 }
 
 func (m *mapStore) Get(path string) (FileRecord, error) {
