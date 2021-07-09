@@ -47,7 +47,7 @@ func (s *store) extractFileRecord(path string, value js.Value, err error) (keyva
 		return nil, err
 	}
 	initialSize := int64(value.Get("Size").Int())
-	modTime := time.Unix(int64(value.Get("ModTime").Int()), 0)
+	modTime := time.Unix(0, int64(value.Get("ModTime").Int()))
 	mode := s.getMode(value)
 	var getData func() (blob.Blob, error)
 	var getDirNames func() ([]string, error)
@@ -175,7 +175,7 @@ func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 		}
 	}
 	fileInfo := map[string]interface{}{
-		"ModTime": data.ModTime().Unix(),
+		"ModTime": data.ModTime().UnixNano(),
 		"Mode":    uint32(data.Mode()),
 		"Size":    data.Size(),
 	}
