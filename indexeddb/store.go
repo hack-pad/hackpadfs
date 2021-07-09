@@ -130,11 +130,7 @@ func (s *store) Set(path string, data keyvalue.FileRecord) error {
 	if data == nil && isRoot {
 		return hackpadfs.ErrNotImplemented // cannot delete root dir
 	}
-	return s.setFile(path, data)
-}
-
-func (s *store) setFile(path string, data keyvalue.FileRecord) error {
-	err := s.doSetFile(path, data)
+	err := s.setFile(path, data)
 	if err != nil {
 		// TODO Verify if AbortError type. If it isn't, then don't replace with syscall.ENOTDIR.
 		// Should be the only reason for an abort. Later use an error handling mechanism in indexeddb pkg.
@@ -143,16 +139,24 @@ func (s *store) setFile(path string, data keyvalue.FileRecord) error {
 	return err
 }
 
-func (s *store) doSetFile(p string, data keyvalue.FileRecord) error {
+func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 	if data == nil {
 		return s.deleteRecord(p)
 	}
 
 	var extraStores []string
+	var dataBlob blob.Blob
 	regularFile := !data.Mode().IsDir()
 	if regularFile {
 		// this is a file, so include file contents
 		extraStores = append(extraStores, contentsStore)
+
+		// get data now, since it should not interrupt the transaction
+		var err error
+		dataBlob, err = data.Data()
+		if err != nil {
+			return err
+		}
 	}
 
 	txn, err := s.db.Transaction(idb.TransactionReadWrite, infoStore, extraStores...)
@@ -162,10 +166,6 @@ func (s *store) doSetFile(p string, data keyvalue.FileRecord) error {
 
 	if regularFile {
 		contents, err := txn.ObjectStore(contentsStore)
-		if err != nil {
-			return err
-		}
-		dataBlob, err := data.Data()
 		if err != nil {
 			return err
 		}
@@ -188,10 +188,6 @@ func (s *store) doSetFile(p string, data keyvalue.FileRecord) error {
 	if err != nil {
 		return err
 	}
-	_, err = info.PutKey(js.ValueOf(p), js.ValueOf(fileInfo))
-	if err != nil {
-		return err
-	}
 
 	// verify a parent directory exists (except for root dir)
 	dir := path.Dir(p)
@@ -211,6 +207,11 @@ func (s *store) doSetFile(p string, data keyvalue.FileRecord) error {
 				_ = txn.Abort()
 			}
 		})
+	}
+
+	_, err = info.PutKey(js.ValueOf(p), js.ValueOf(fileInfo))
+	if err != nil {
+		return err
 	}
 	return txn.Await(context.Background())
 }
