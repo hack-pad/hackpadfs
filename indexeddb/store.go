@@ -146,6 +146,7 @@ func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 
 	var extraStores []string
 	var dataBlob blob.Blob
+	size := data.Size()
 	regularFile := !data.Mode().IsDir()
 	if regularFile {
 		// this is a file, so include file contents
@@ -157,6 +158,7 @@ func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 		if err != nil {
 			return err
 		}
+		size = int64(dataBlob.Len())
 	}
 
 	txn, err := s.db.Transaction(idb.TransactionReadWrite, infoStore, extraStores...)
@@ -177,7 +179,7 @@ func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 	fileInfo := map[string]interface{}{
 		"ModTime": data.ModTime().UnixNano(),
 		"Mode":    uint32(data.Mode()),
-		"Size":    data.Size(),
+		"Size":    size,
 	}
 	if p != rootPath {
 		fileInfo[parentKey] = path.Dir(p)
