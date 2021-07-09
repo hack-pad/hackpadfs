@@ -139,26 +139,26 @@ func (s *store) Set(path string, data keyvalue.FileRecord) error {
 	return err
 }
 
-func (s *store) setFile(p string, data keyvalue.FileRecord) error {
-	if data == nil {
+func (s *store) setFile(p string, record keyvalue.FileRecord) error {
+	if record == nil {
 		return s.deleteRecord(p)
 	}
 
 	var extraStores []string
-	var dataBlob blob.Blob
-	size := data.Size()
-	regularFile := !data.Mode().IsDir()
+	var data blob.Blob
+	size := record.Size()
+	regularFile := !record.Mode().IsDir()
 	if regularFile {
 		// this is a file, so include file contents
 		extraStores = append(extraStores, contentsStore)
 
 		// get data now, since it should not interrupt the transaction
 		var err error
-		dataBlob, err = data.Data()
+		data, err = record.Data()
 		if err != nil {
 			return err
 		}
-		size = int64(dataBlob.Len())
+		size = int64(data.Len())
 	}
 
 	txn, err := s.db.Transaction(idb.TransactionReadWrite, infoStore, extraStores...)
@@ -171,14 +171,14 @@ func (s *store) setFile(p string, data keyvalue.FileRecord) error {
 		if err != nil {
 			return err
 		}
-		_, err = contents.PutKey(js.ValueOf(p), toJSValue(dataBlob))
+		_, err = contents.PutKey(js.ValueOf(p), toJSValue(data))
 		if err != nil {
 			return err
 		}
 	}
 	fileInfo := map[string]interface{}{
-		"ModTime": data.ModTime().UnixNano(),
-		"Mode":    uint32(data.Mode()),
+		"ModTime": record.ModTime().UnixNano(),
+		"Mode":    uint32(record.Mode()),
 		"Size":    size,
 	}
 	if p != rootPath {
