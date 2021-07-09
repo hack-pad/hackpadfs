@@ -212,7 +212,7 @@ func (s *store) doSetFile(p string, data keyvalue.FileRecord) error {
 			}
 		})
 	}
-	return err
+	return txn.Await(context.Background())
 }
 
 func (s *store) deleteRecord(p string) error {
