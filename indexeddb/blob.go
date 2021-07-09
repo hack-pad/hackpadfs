@@ -3,6 +3,7 @@
 package indexeddb
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"syscall/js"
@@ -25,7 +26,7 @@ var (
 )
 
 type jsBlob struct {
-	bytes   atomic.Value // []byte
+	bytes   atomic.Value // *blob.Bytes
 	jsValue atomic.Value // js.Value
 	length  int64
 }
@@ -54,9 +55,17 @@ func toJSValue(b blob.Blob) js.Value {
 	return jsBuf
 }
 
+func (b *jsBlob) currentBytes() *blob.Bytes {
+	buf := b.bytes.Load()
+	if buf != nil {
+		return buf.(*blob.Bytes)
+	}
+	return nil
+}
+
 func (b *jsBlob) Bytes() []byte {
-	if buf := b.bytes.Load(); buf != nil {
-		return buf.([]byte)
+	if buf := b.currentBytes(); buf != nil {
+		return buf.Bytes()
 	}
 	jsBuf := b.jsValue.Load().(js.Value)
 	buf := make([]byte, jsBuf.Length())
@@ -73,76 +82,129 @@ func (b *jsBlob) Len() int {
 	return int(atomic.LoadInt64(&b.length))
 }
 
-func (b *jsBlob) View(start, end int64) (_ blob.Blob, returnedErr error) {
+func catchErr(fn func() error) (returnedErr error) {
+	defer exception.Catch(&returnedErr)
+	return fn()
+}
+
+func (b *jsBlob) View(start, end int64) (blob.Blob, error) {
 	if start == 0 && end == atomic.LoadInt64(&b.length) {
 		return b, nil
 	}
-	// TODO is it accurate to return a new bytes blob for View? won't be synced with the JSValue
-	if buf := b.bytes.Load(); buf != nil {
-		return blob.NewBytes(buf.([]byte)).View(start, end)
-	}
-	defer exception.Catch(&returnedErr)
-	return newJSBlob(b.JSValue().Call("subarray", start, end))
-}
 
-func (b *jsBlob) Slice(start, end int64) (_ blob.Blob, err error) {
-	if buf := b.bytes.Load(); buf != nil {
-		return blob.NewBytes(buf.([]byte)).Slice(start, end)
+	var newBlob *jsBlob
+	err := catchErr(func() error {
+		b, err := newJSBlob(b.JSValue().Call("subarray", start, end))
+		newBlob, _ = b.(*jsBlob)
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
-	return newJSBlob(b.JSValue().Call("slice", start, end))
-}
 
-func (b *jsBlob) Set(w blob.Blob, off int64) (n int, returnedErr error) {
-	// TODO need better consistency if this is to be thread-safe
-	if buf := b.bytes.Load(); buf != nil {
-		bytes := blob.NewBytes(b.bytes.Load().([]byte))
-		_, err := bytes.Set(w, off)
+	if buf := b.currentBytes(); buf != nil {
+		newBytesBlob, err := b.currentBytes().View(start, end)
 		if err != nil {
-			return 0, err
+			panic(err)
+		}
+		newBlob.bytes.Store(newBytesBlob)
+	}
+	return newBlob, nil
+}
+
+func (b *jsBlob) Slice(start, end int64) (blob.Blob, error) {
+	if start < 0 || start > int64(b.Len()) {
+		return nil, fmt.Errorf("Start index out of bounds: %d", start)
+	}
+	if end < 0 || end > int64(b.Len()) {
+		return nil, fmt.Errorf("End index out of bounds: %d", end)
+	}
+
+	newBlob, err := newJSBlob(b.JSValue().Call("slice", start, end))
+	if err != nil {
+		return nil, err
+	}
+	if buf := b.currentBytes(); buf != nil {
+		newJSBlob := newBlob.(*jsBlob)
+		newBytes, err := buf.Slice(start, end)
+		if err != nil {
+			panic(err)
+		}
+		newJSBlob.bytes.Store(newBytes)
+	}
+	return newBlob, nil
+}
+
+func (b *jsBlob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
+	if srcStart < 0 {
+		return 0, errors.New("negative offset")
+	}
+	if srcStart >= int64(b.Len()) {
+		return 0, fmt.Errorf("Offset out of bounds: %d", srcStart)
+	}
+
+	err = catchErr(func() error {
+		b.JSValue().Call("set", toJSValue(dest), srcStart)
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	n = dest.Len()
+
+	if buf := b.currentBytes(); buf != nil {
+		_, err := buf.Set(dest, srcStart)
+		if err != nil {
+			panic(err)
 		}
 	}
-
-	defer exception.Catch(&returnedErr)
-
-	buf := b.jsValue.Load().(js.Value)
-	buf.Call("set", w, off)
-	n = w.Len()
 	return n, nil
 }
 
-func (b *jsBlob) Grow(off int64) (returnedErr error) {
-	// TODO need better consistency if this is to be thread-safe
+func (b *jsBlob) Grow(off int64) error {
 	newLength := atomic.LoadInt64(&b.length) + off
-	if buf := b.bytes.Load(); buf != nil {
-		biggerBuf := buf.([]byte)
-		biggerBuf = append(biggerBuf, make([]byte, off)...)
-		b.bytes.Store(biggerBuf)
+
+	err := catchErr(func() error {
+		buf := b.jsValue.Load().(js.Value)
+		biggerBuf := uint8Array.New(newLength)
+		biggerBuf.Call("set", buf, 0)
+		b.jsValue.Store(biggerBuf)
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-
-	defer exception.Catch(&returnedErr)
-
-	buf := b.jsValue.Load().(js.Value)
-	biggerBuf := uint8Array.New(newLength)
-	biggerBuf.Call("set", buf, 0)
-	b.jsValue.Store(biggerBuf)
 	atomic.StoreInt64(&b.length, newLength)
+
+	if buf := b.currentBytes(); buf != nil {
+		err := buf.Grow(off)
+		if err != nil {
+			panic(err)
+		}
+	}
 	return nil
 }
 
-func (b *jsBlob) Truncate(size int64) (returnedErr error) {
+func (b *jsBlob) Truncate(size int64) error {
 	if atomic.LoadInt64(&b.length) < size {
-		return
-	}
-	if buf := b.bytes.Load(); buf != nil {
-		bytes := buf.([]byte)
-		b.bytes.Store(bytes[:size])
+		return nil
 	}
 
-	defer exception.Catch(&returnedErr)
-
-	buf := b.jsValue.Load().(js.Value)
-	smallerBuf := buf.Call("slice", 0, size)
-	b.jsValue.Store(smallerBuf)
+	err := catchErr(func() error {
+		smallerBuf := b.JSValue().Call("slice", 0, size)
+		b.jsValue.Store(smallerBuf)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 	atomic.StoreInt64(&b.length, size)
+
+	if buf := b.currentBytes(); buf != nil {
+		err := buf.Truncate(size)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
