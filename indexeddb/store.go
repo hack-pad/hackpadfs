@@ -18,7 +18,7 @@ type store struct {
 	db *idb.Database
 }
 
-func newStore(db *idb.Database) keyvalue.Store {
+func newStore(db *idb.Database) *store {
 	return &store{db: db}
 }
 
@@ -36,10 +36,6 @@ func (s *store) Get(path string) (record keyvalue.FileRecord, err error) {
 		return nil, err
 	}
 	value, err := req.Await(context.Background())
-	return s.extractFileRecord(path, value, err)
-}
-
-func (s *store) extractFileRecord(path string, value js.Value, err error) (keyvalue.FileRecord, error) {
 	if value.IsUndefined() {
 		return nil, hackpadfs.ErrNotExist
 	}
@@ -125,23 +121,12 @@ func (s *store) getMode(fileRecord js.Value) hackpadfs.FileMode {
 
 const rootPath = "."
 
-func (s *store) Set(path string, data keyvalue.FileRecord) error {
-	isRoot := path == rootPath
-	if data == nil && isRoot {
-		return hackpadfs.ErrNotImplemented // cannot delete root dir
-	}
-	err := s.setFile(path, data)
-	if err != nil {
-		// TODO Verify if AbortError type. If it isn't, then don't replace with syscall.ENOTDIR.
-		// Should be the only reason for an abort. Later use an error handling mechanism in indexeddb pkg.
-		err = hackpadfs.ErrNotDir
-	}
-	return err
-}
-
-func (s *store) setFile(p string, record keyvalue.FileRecord) error {
+func (s *store) Set(name string, record keyvalue.FileRecord) error {
 	if record == nil {
-		return s.deleteRecord(p)
+		if name == rootPath {
+			return hackpadfs.ErrNotImplemented // cannot delete root dir
+		}
+		return s.deleteRecord(name)
 	}
 
 	var extraStores []string
@@ -171,7 +156,7 @@ func (s *store) setFile(p string, record keyvalue.FileRecord) error {
 		if err != nil {
 			return err
 		}
-		_, err = contents.PutKey(js.ValueOf(p), toJSValue(data))
+		_, err = contents.PutKey(js.ValueOf(name), toJSValue(data))
 		if err != nil {
 			return err
 		}
@@ -181,8 +166,8 @@ func (s *store) setFile(p string, record keyvalue.FileRecord) error {
 		"Mode":    uint32(record.Mode()),
 		"Size":    size,
 	}
-	if p != rootPath {
-		fileInfo[parentKey] = path.Dir(p)
+	if name != rootPath {
+		fileInfo[parentKey] = path.Dir(name)
 	}
 
 	// include metadata update
@@ -192,7 +177,8 @@ func (s *store) setFile(p string, record keyvalue.FileRecord) error {
 	}
 
 	// verify a parent directory exists (except for root dir)
-	dir := path.Dir(p)
+	dir := path.Dir(name)
+	var noParentDir bool
 	if dir != "" && dir != rootPath {
 		req, err := info.Get(js.ValueOf(dir))
 		if err != nil {
@@ -206,16 +192,21 @@ func (s *store) setFile(p string, record keyvalue.FileRecord) error {
 			}
 			mode := s.getMode(result)
 			if !mode.IsDir() {
+				noParentDir = true
 				_ = txn.Abort()
 			}
 		})
 	}
 
-	_, err = info.PutKey(js.ValueOf(p), js.ValueOf(fileInfo))
+	_, err = info.PutKey(js.ValueOf(name), js.ValueOf(fileInfo))
 	if err != nil {
 		return err
 	}
-	return txn.Await(context.Background())
+	err = txn.Await(context.Background())
+	if noParentDir {
+		err = hackpadfs.ErrNotDir
+	}
+	return err
 }
 
 func (s *store) deleteRecord(p string) error {
