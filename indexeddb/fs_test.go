@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hack-pad/go-indexeddb/idb"
+	"github.com/hack-pad/hackpadfs"
 	"github.com/hack-pad/hackpadfs/fstest"
 	"github.com/hack-pad/hackpadfs/internal/assert"
 )
@@ -34,6 +35,7 @@ func TestFS(t *testing.T) {
 				tb.Fatal(err)
 			}
 			tb.Cleanup(func() {
+				logFS(tb, fs)
 				req, err := factory.DeleteDatabase(name)
 				assert.NoError(tb, err)
 				assert.NoError(tb, req.Await(context.Background()))
@@ -43,4 +45,28 @@ func TestFS(t *testing.T) {
 	}
 	fstest.FS(t, options)
 	fstest.File(t, options)
+}
+
+func logFS(tb testing.TB, fs hackpadfs.FS) {
+	if !tb.Failed() {
+		return
+	}
+	tb.Log("FS contents:")
+	assert.NoError(tb, hackpadfs.WalkDir(fs, ".", func(path string, d hackpadfs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			tb.Log(path+":", "Unexpected error getting file info:", err)
+			return nil
+		}
+		if info.Mode().IsDir() {
+			tb.Log(path+":", info.Mode())
+		} else {
+			tb.Log(path+":", info.Mode(), info.Size())
+		}
+		return nil
+	}))
+
 }
