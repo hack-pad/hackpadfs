@@ -162,7 +162,7 @@ func getMode(fileRecord js.Value) hackpadfs.FileMode {
 const rootPath = "."
 
 func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
-	includeContents := record == nil || !record.Mode().IsDir() // i.e. "should delete" OR "is a regular file"
+	includeContents := record == nil || record.Mode().IsRegular() // i.e. "should delete" OR "is a regular file"
 	stores := []string{infoStore}
 	if includeContents {
 		stores = append(stores, contentsStore)
