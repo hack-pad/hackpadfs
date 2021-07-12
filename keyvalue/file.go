@@ -322,3 +322,53 @@ func (f *file) Truncate(size int64) error {
 	f.updateModTime()
 	return f.save()
 }
+
+func (f *file) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
+	if n > 0 {
+		return nil, &hackpadfs.PathError{Op: "readdir", Path: f.path, Err: hackpadfs.ErrNotImplemented}
+	}
+
+	dirNames, err := f.ReadDirNames()
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []hackpadfs.DirEntry
+	for _, name := range dirNames {
+		entry, err := newDirEntry(f.fs, f.path, name)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+type dirEntry struct {
+	baseName string
+	info     hackpadfs.FileInfo
+}
+
+func newDirEntry(fs hackpadfs.FS, basePath, name string) (*dirEntry, error) {
+	info, err := hackpadfs.Stat(fs, path.Join(basePath, name))
+	return &dirEntry{
+		baseName: name,
+		info:     info,
+	}, err
+}
+
+func (d *dirEntry) Name() string {
+	return d.baseName
+}
+
+func (d *dirEntry) IsDir() bool {
+	return d.info.Mode().IsDir()
+}
+
+func (d *dirEntry) Type() hackpadfs.FileMode {
+	return d.info.Mode().Type()
+}
+
+func (d *dirEntry) Info() (hackpadfs.FileInfo, error) {
+	return d.info, nil
+}
