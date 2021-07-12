@@ -109,7 +109,9 @@ func (fs *FS) getFiles(paths ...string) ([]*file, []error) {
 }
 
 func getFileRecords(store *transactionOnly, paths []string) ([]OpResult, error) {
-	txn, err := store.Transaction()
+	txn, err := store.Transaction(TransactionOptions{
+		Mode: TransactionReadOnly,
+	})
 	if err != nil {
 		return nil, err
 	}
