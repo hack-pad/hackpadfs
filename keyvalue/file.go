@@ -14,10 +14,16 @@ import (
 var (
 	_ interface {
 		hackpadfs.File
+		io.ReaderAt
+		io.WriterAt
 		blob.Reader
 		blob.ReaderAt
 		blob.Writer
 		blob.WriterAt
+		hackpadfs.DirReaderFile
+		hackpadfs.ReadWriterFile
+		hackpadfs.SeekerFile
+		hackpadfs.TruncaterFile
 	} = &file{}
 )
 
@@ -60,7 +66,9 @@ func (fs *FS) getFile(path string) (*file, error) {
 		path: path,
 		fs:   fs,
 	}
-	txn, err := fs.store.Transaction()
+	txn, err := fs.store.Transaction(TransactionOptions{
+		Mode: TransactionReadOnly,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +86,22 @@ func (fs *FS) setFile(path string, file FileRecord) error {
 	if !hackpadfs.ValidPath(path) {
 		return hackpadfs.ErrInvalid
 	}
-	txn, err := fs.store.Transaction()
+	var contents blob.Blob
+	if file != nil && file.Mode().IsRegular() {
+		var err error
+		contents, err = file.Data()
+		if err != nil {
+			return err
+		}
+	}
+
+	txn, err := fs.store.Transaction(TransactionOptions{
+		Mode: TransactionReadWrite,
+	})
 	if err != nil {
 		return err
 	}
-	txn.Set(path, file)
+	txn.Set(path, file, contents)
 	_, err = txn.Commit(context.Background())
 	return err
 }

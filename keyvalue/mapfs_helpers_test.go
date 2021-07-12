@@ -68,6 +68,8 @@ func newMapStore(tb testing.TB) Store {
 }
 
 func (m *mapStore) Get(path string) (FileRecord, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.tb.Log("getting", path)
 	record, ok := m.records[path]
 	if !ok {
@@ -77,6 +79,20 @@ func (m *mapStore) Get(path string) (FileRecord, error) {
 }
 
 func (m *mapStore) Set(path string, src FileRecord) error {
+	var contents blob.Blob
+	if src != nil {
+		var err error
+		contents, err = src.Data()
+		if err != nil {
+			return err
+		}
+	}
+	return m.set(path, src, contents)
+}
+
+func (m *mapStore) set(path string, src FileRecord, contents blob.Blob) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if src == nil {
 		m.tb.Log("deleting", path)
 		delete(m.records, path)
@@ -130,9 +146,9 @@ func (txn *mapTransaction) prepOp() (OpID, error) {
 }
 
 func (txn *mapTransaction) Get(path string) OpID {
-	return txn.GetHandler(path, func(txn Transaction, result OpResult) error {
+	return txn.GetHandler(path, OpHandlerFunc(func(txn Transaction, result OpResult) error {
 		return nil
-	})
+	}))
 }
 
 func (txn *mapTransaction) GetHandler(path string, handler OpHandler) OpID {
@@ -143,7 +159,7 @@ func (txn *mapTransaction) GetHandler(path string, handler OpHandler) OpID {
 	}
 	record, err := txn.store.Get(path)
 	result := OpResult{Op: op, Record: record, Err: err}
-	err = handler(txn, result)
+	err = handler.Handle(txn, result)
 	if result.Err == nil && err != nil {
 		result.Err = err
 	}
@@ -151,21 +167,21 @@ func (txn *mapTransaction) GetHandler(path string, handler OpHandler) OpID {
 	return op
 }
 
-func (txn *mapTransaction) Set(path string, src FileRecord) OpID {
-	return txn.SetHandler(path, src, func(txn Transaction, result OpResult) error {
+func (txn *mapTransaction) Set(path string, src FileRecord, contents blob.Blob) OpID {
+	return txn.SetHandler(path, src, contents, OpHandlerFunc(func(txn Transaction, result OpResult) error {
 		return nil
-	})
+	}))
 }
 
-func (txn *mapTransaction) SetHandler(path string, src FileRecord, handler OpHandler) OpID {
+func (txn *mapTransaction) SetHandler(path string, src FileRecord, contents blob.Blob, handler OpHandler) OpID {
 	op, err := txn.prepOp()
 	if err != nil {
 		txn.results = append(txn.results, OpResult{Op: op, Err: err})
 		return op
 	}
-	err = txn.store.Set(path, src)
+	err = txn.store.set(path, src, contents)
 	result := OpResult{Op: op, Err: err}
-	err = handler(txn, result)
+	err = handler.Handle(txn, result)
 	if result.Err == nil && err != nil {
 		result.Err = err
 	}

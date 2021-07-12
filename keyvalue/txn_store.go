@@ -4,12 +4,25 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+
+	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
 
 // TransactionStore is a Store that can create a Transaction.
 type TransactionStore interface {
 	Store
-	Transaction() (Transaction, error)
+	Transaction(options TransactionOptions) (Transaction, error)
+}
+
+type TransactionMode int
+
+const (
+	TransactionReadOnly TransactionMode = iota
+	TransactionReadWrite
+)
+
+type TransactionOptions struct {
+	Mode TransactionMode
 }
 
 // OpID is a unique ID within the transaction that generated it. It's used to correlate which Get/Set operation produced which result.
@@ -24,15 +37,23 @@ type OpResult struct {
 
 // OpHandler processes 'result' during the commit process of 'txn'.
 // If the transaction should not proceed, the handler should call txn.Abort().
-type OpHandler func(txn Transaction, result OpResult) error
+type OpHandler interface {
+	Handle(txn Transaction, result OpResult) error
+}
+
+type OpHandlerFunc func(txn Transaction, result OpResult) error
+
+func (o OpHandlerFunc) Handle(txn Transaction, result OpResult) error {
+	return o(txn, result)
+}
 
 // Transaction behaves like a Store but only takes action and returns results after running Commit().
 // GetHandler and SetHandler can be used to pause transaction processing and handle the response, permitting an opportunity to Abort().
 type Transaction interface {
 	Get(path string) OpID
 	GetHandler(path string, handler OpHandler) OpID
-	Set(path string, src FileRecord) OpID
-	SetHandler(path string, src FileRecord, handler OpHandler) OpID
+	Set(path string, src FileRecord, contents blob.Blob) OpID
+	SetHandler(path string, src FileRecord, contents blob.Blob, handler OpHandler) OpID
 	Commit(ctx context.Context) ([]OpResult, error)
 	Abort() error
 }
@@ -51,9 +72,9 @@ type unsafeSerialTransaction struct {
 //
 // This is used in FS to attempt transactions whenever possible.
 // Since some Stores don't need transactions, they aren't required to implement TransactionStore.
-func TransactionOrSerial(store Store) (Transaction, error) {
+func TransactionOrSerial(store Store, options TransactionOptions) (Transaction, error) {
 	if store, ok := store.(TransactionStore); ok {
-		return store.Transaction()
+		return store.Transaction(options)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &unsafeSerialTransaction{
@@ -90,9 +111,9 @@ func abortErr(ctx, extraCtx context.Context) error {
 }
 
 func (u *unsafeSerialTransaction) Get(path string) OpID {
-	return u.GetHandler(path, func(txn Transaction, result OpResult) error {
+	return u.GetHandler(path, OpHandlerFunc(func(txn Transaction, result OpResult) error {
 		return nil
-	})
+	}))
 }
 
 func (u *unsafeSerialTransaction) GetHandler(path string, handler OpHandler) OpID {
@@ -104,7 +125,7 @@ func (u *unsafeSerialTransaction) GetHandler(path string, handler OpHandler) OpI
 
 	record, err := u.store.Get(path)
 	result := OpResult{Op: op, Record: record, Err: err}
-	err = handler(u, result)
+	err = handler.Handle(u, result)
 	if result.Err == nil && err != nil {
 		result.Err = err
 	}
@@ -112,13 +133,13 @@ func (u *unsafeSerialTransaction) GetHandler(path string, handler OpHandler) OpI
 	return op
 }
 
-func (u *unsafeSerialTransaction) Set(path string, src FileRecord) OpID {
-	return u.SetHandler(path, src, func(txn Transaction, result OpResult) error {
+func (u *unsafeSerialTransaction) Set(path string, src FileRecord, contents blob.Blob) OpID {
+	return u.SetHandler(path, src, contents, OpHandlerFunc(func(txn Transaction, result OpResult) error {
 		return nil
-	})
+	}))
 }
 
-func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, handler OpHandler) OpID {
+func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, contents blob.Blob, handler OpHandler) OpID {
 	op := u.newOp()
 	if err := abortErr(u.ctx, nil); err != nil {
 		u.setResult(op, OpResult{Op: op, Err: err})
@@ -127,7 +148,7 @@ func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, handle
 
 	err := u.store.Set(path, src)
 	result := OpResult{Op: op, Err: err}
-	err = handler(u, result)
+	err = handler.Handle(u, result)
 	if result.Err == nil && err != nil {
 		result.Err = err
 	}
