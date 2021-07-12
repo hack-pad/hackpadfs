@@ -30,7 +30,7 @@ func TestFS(t *testing.T) {
 
 			factory := idb.Global()
 
-			fs, err := NewFS(name, factory)
+			fs, err := NewFS(context.Background(), name, factory)
 			if err != nil {
 				tb.Fatal(err)
 			}
