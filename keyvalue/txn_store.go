@@ -14,13 +14,16 @@ type TransactionStore interface {
 	Transaction(options TransactionOptions) (Transaction, error)
 }
 
+// TransactionMode is the kind of transaction mode, i.e. read-only or read-write
 type TransactionMode int
 
+// Transaction modes
 const (
 	TransactionReadOnly TransactionMode = iota
 	TransactionReadWrite
 )
 
+// TransactionOptions contain options used to construct a Transaction from a Store
 type TransactionOptions struct {
 	Mode TransactionMode
 }
@@ -41,8 +44,10 @@ type OpHandler interface {
 	Handle(txn Transaction, result OpResult) error
 }
 
+// OpHandlerFunc is a convenient func wrapper for implementing OpHandler
 type OpHandlerFunc func(txn Transaction, result OpResult) error
 
+// Handle implements OpHandler
 func (o OpHandlerFunc) Handle(txn Transaction, result OpResult) error {
 	return o(txn, result)
 }

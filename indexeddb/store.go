@@ -14,6 +14,13 @@ import (
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
 
+var (
+	_ interface {
+		keyvalue.Store
+		keyvalue.TransactionStore
+	} = &store{}
+)
+
 type store struct {
 	db *idb.Database
 }
@@ -47,25 +54,25 @@ func (s *store) getFile(files *idb.ObjectStore, path string) (*getFileRequest, e
 }
 
 type getFileRequest struct {
+	*idb.Request
 	store *store
 	path  string
-	req   *idb.Request
 }
 
 func newGetFileRequest(s *store, path string, req *idb.Request) *getFileRequest {
 	return &getFileRequest{
-		store: s,
-		path:  path,
-		req:   req,
+		Request: req,
+		store:   s,
+		path:    path,
 	}
 }
 
 func (g *getFileRequest) Await(ctx context.Context) (keyvalue.FileRecord, error) {
-	return g.parseResult(g.req.Await(ctx))
+	return g.parseResult(g.Request.Await(ctx))
 }
 
 func (g *getFileRequest) Result() (keyvalue.FileRecord, error) {
-	return g.parseResult(g.req.Result())
+	return g.parseResult(g.Request.Result())
 }
 
 func (g *getFileRequest) parseResult(result js.Value, err error) (keyvalue.FileRecord, error) {
@@ -161,7 +168,7 @@ func (s *store) Set(name string, record keyvalue.FileRecord) error {
 		stores = append(stores, contentsStore)
 	}
 	var data blob.Blob
-	if record != nil {
+	if record != nil && record.Mode().IsRegular() {
 		// get data now, since it should not interrupt the transaction
 		var err error
 		data, err = record.Data()
@@ -204,13 +211,14 @@ func (s *store) Set(name string, record keyvalue.FileRecord) error {
 		}
 	}
 	// always set metadata to update size when contents change
-	validateErrs, err := validateAndSetFileMeta(infos, name, record, data)
+	ctx := context.Background()
+	_, parentExistsReq, err := validateAndSetFileMeta(ctx, infos, name, record, data)
 	if err != nil {
 		return err
 	}
-	err = txn.Await(context.Background())
-	if vErr := <-validateErrs; vErr != nil {
-		return vErr
+	err = txn.Await(ctx)
+	if pErr := parentExistsReq.Err(); pErr != nil {
+		return pErr
 	}
 	return err
 }
@@ -231,7 +239,7 @@ func setFileContents(contents *idb.ObjectStore, name string, data blob.Blob) err
 }
 
 // validateAndSetFileMeta verifies the file by 'name' has a parent directory, then updates the file metadata. If not nil, 'data' is used to detect size instead of record.Size().
-func validateAndSetFileMeta(infos *idb.ObjectStore, name string, record keyvalue.FileRecord, data blob.Blob) (<-chan error, error) {
+func validateAndSetFileMeta(ctx context.Context, infos *idb.ObjectStore, name string, record keyvalue.FileRecord, data blob.Blob) (*idb.Request, *parentDirExistsReq, error) {
 	var size int64
 	if data == nil {
 		size = record.Size()
@@ -247,37 +255,55 @@ func validateAndSetFileMeta(infos *idb.ObjectStore, name string, record keyvalue
 		fileInfo[parentKey] = path.Dir(name)
 	}
 
-	parentExistsErr, err := requireParentDirectoryExists(infos, name)
+	parentExistsReq, err := requireParentDirectoryExists(ctx, infos, name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	_, err = infos.PutKey(js.ValueOf(name), js.ValueOf(fileInfo))
-	return parentExistsErr, err
+	req, err := infos.PutKey(js.ValueOf(name), js.ValueOf(fileInfo))
+	return req, parentExistsReq, err
+}
+
+type parentDirExistsReq struct {
+	*idb.Request
+	notExists bool
+}
+
+func (p *parentDirExistsReq) Result() error {
+	_, err := p.Request.Result()
+	if err != nil {
+		return err
+	}
+	return p.Err()
+}
+
+func (p *parentDirExistsReq) Err() error {
+	if p.notExists {
+		return hackpadfs.ErrNotDir
+	}
+	return p.Request.Err()
 }
 
 // requireParentDirectoryExists returns an async err chan. Async error is nil if directory exists.
-func requireParentDirectoryExists(infos *idb.ObjectStore, name string) (<-chan error, error) {
-	existsErr := make(chan error, 1)
+func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, name string) (*parentDirExistsReq, error) {
 	dir := path.Dir(name)
 	if dir == "" || dir == rootPath {
-		existsErr <- nil
-		close(existsErr)
-		return existsErr, nil
+		return nil, nil
 	}
 
 	req, err := infos.Get(js.ValueOf(dir))
 	if err != nil {
 		return nil, err
 	}
-	req.Listen(context.Background(), func() {
+	parentReq := &parentDirExistsReq{
+		Request: req,
+	}
+	req.ListenSuccess(ctx, func() {
 		result, err := req.Result()
 		if err != nil {
 			if txn, err := infos.Transaction(); err == nil {
 				_ = txn.Abort()
 			}
-			existsErr <- err
-			close(existsErr)
 			return
 		}
 		mode := getMode(result)
@@ -285,15 +311,27 @@ func requireParentDirectoryExists(infos *idb.ObjectStore, name string) (<-chan e
 			if txn, err := infos.Transaction(); err == nil {
 				_ = txn.Abort()
 			}
-			existsErr <- hackpadfs.ErrNotDir
-			close(existsErr)
+			parentReq.notExists = true
 			return
 		}
-		existsErr <- nil
-		close(existsErr)
-	}, func() {
-		existsErr <- nil
-		close(existsErr)
 	})
-	return existsErr, nil
+	return parentReq, nil
+}
+
+func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Transaction, error) {
+	mode := idb.TransactionReadOnly
+	stores := []string{infoStore}
+	if options.Mode == keyvalue.TransactionReadWrite {
+		mode = idb.TransactionReadWrite
+		stores = append(stores, contentsStore)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	txn, err := s.db.Transaction(mode, stores[0], stores[1:]...)
+	return &transaction{
+		ctx:     ctx,
+		abort:   cancel,
+		store:   s,
+		txn:     txn,
+		results: make(map[keyvalue.OpID]keyvalue.OpResult),
+	}, err
 }
