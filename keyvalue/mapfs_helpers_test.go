@@ -67,7 +67,7 @@ func newMapStore(tb testing.TB) Store {
 	}
 }
 
-func (m *mapStore) Get(path string) (FileRecord, error) {
+func (m *mapStore) Get(ctx context.Context, path string) (FileRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.tb.Log("getting", path)
@@ -78,7 +78,7 @@ func (m *mapStore) Get(path string) (FileRecord, error) {
 	return record, nil
 }
 
-func (m *mapStore) Set(path string, src FileRecord) error {
+func (m *mapStore) Set(ctx context.Context, path string, src FileRecord) error {
 	var contents blob.Blob
 	if src != nil {
 		var err error
@@ -157,7 +157,7 @@ func (txn *mapTransaction) GetHandler(path string, handler OpHandler) OpID {
 		txn.results = append(txn.results, OpResult{Op: op, Err: err})
 		return op
 	}
-	record, err := txn.store.Get(path)
+	record, err := txn.store.Get(txn.ctx, path)
 	result := OpResult{Op: op, Record: record, Err: err}
 	err = handler.Handle(txn, result)
 	if result.Err == nil && err != nil {

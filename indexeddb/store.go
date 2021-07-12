@@ -29,7 +29,7 @@ func newStore(db *idb.Database) *store {
 	return &store{db: db}
 }
 
-func (s *store) Get(path string) (keyvalue.FileRecord, error) {
+func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, error) {
 	txn, err := s.db.Transaction(idb.TransactionReadOnly, infoStore)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (s *store) Get(path string) (keyvalue.FileRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	return req.Await(context.Background())
+	return req.Await(ctx)
 }
 
 func (s *store) getFile(files *idb.ObjectStore, path string) (*getFileRequest, error) {
@@ -161,7 +161,7 @@ func getMode(fileRecord js.Value) hackpadfs.FileMode {
 
 const rootPath = "."
 
-func (s *store) Set(name string, record keyvalue.FileRecord) error {
+func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
 	includeContents := record == nil || !record.Mode().IsDir() // i.e. "should delete" OR "is a regular file"
 	stores := []string{infoStore}
 	if includeContents {
@@ -201,7 +201,7 @@ func (s *store) Set(name string, record keyvalue.FileRecord) error {
 		if err != nil {
 			return err
 		}
-		return txn.Await(context.Background())
+		return txn.Await(ctx)
 	}
 
 	if includeContents {
@@ -211,7 +211,6 @@ func (s *store) Set(name string, record keyvalue.FileRecord) error {
 		}
 	}
 	// always set metadata to update size when contents change
-	ctx := context.Background()
 	_, parentExistsReq, err := validateAndSetFileMeta(ctx, infos, name, record, data)
 	if err != nil {
 		return err

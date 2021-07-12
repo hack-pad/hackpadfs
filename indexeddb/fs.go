@@ -27,8 +27,8 @@ type FS struct {
 }
 
 // NewFS returns a new FS.
-func NewFS(name string, factory *idb.Factory) (*FS, error) {
-	openRequest, err := factory.Open(context.Background(), name, fsVersion, func(db *idb.Database, oldVersion, newVersion uint) error {
+func NewFS(ctx context.Context, name string, factory *idb.Factory) (*FS, error) {
+	openRequest, err := factory.Open(ctx, name, fsVersion, func(db *idb.Database, oldVersion, newVersion uint) error {
 		_, err := db.CreateObjectStore(contentsStore, idb.ObjectStoreOptions{})
 		if err != nil {
 			return err

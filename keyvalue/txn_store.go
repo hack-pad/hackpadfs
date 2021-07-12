@@ -52,8 +52,9 @@ func (o OpHandlerFunc) Handle(txn Transaction, result OpResult) error {
 	return o(txn, result)
 }
 
-// Transaction behaves like a Store but only takes action and returns results after running Commit().
-// GetHandler and SetHandler can be used to pause transaction processing and handle the response, permitting an opportunity to Abort().
+// Transaction behaves like a Store but only returns results after running Commit().
+// GetHandler and SetHandler can be used to interrupt transaction processing and handle the response,
+// permitting an opportunity to Abort() or perform more operations.
 type Transaction interface {
 	Get(path string) OpID
 	GetHandler(path string, handler OpHandler) OpID
@@ -128,7 +129,7 @@ func (u *unsafeSerialTransaction) GetHandler(path string, handler OpHandler) OpI
 		return op
 	}
 
-	record, err := u.store.Get(path)
+	record, err := u.store.Get(u.ctx, path)
 	result := OpResult{Op: op, Record: record, Err: err}
 	err = handler.Handle(u, result)
 	if result.Err == nil && err != nil {
@@ -151,7 +152,7 @@ func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, conten
 		return op
 	}
 
-	err := u.store.Set(path, src)
+	err := u.store.Set(u.ctx, path, src)
 	result := OpResult{Op: op, Err: err}
 	err = handler.Handle(u, result)
 	if result.Err == nil && err != nil {
