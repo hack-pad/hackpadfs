@@ -43,7 +43,7 @@ func NewFS(ctx context.Context, name string, factory *idb.Factory) (*FS, error) 
 	if err != nil {
 		return nil, err
 	}
-	db, err := openRequest.Await(context.Background())
+	db, err := openRequest.Await(ctx)
 	if err != nil {
 		return nil, err
 	}
