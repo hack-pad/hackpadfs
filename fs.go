@@ -114,6 +114,13 @@ type SymlinkFS interface {
 	Symlink(oldname, newname string) error
 }
 
+// MountFS is an FS that meshes one or more FS's together.
+// Returns the FS for a file located at 'name' and its 'subPath' inside that FS.
+type MountFS interface {
+	FS
+	Mount(name string) (mountFS FS, subPath string)
+}
+
 // ValidPath returns true if 'path' is a valid FS path. See io/fs.ValidPath() for details on FS-safe paths.
 func ValidPath(path string) bool {
 	return gofs.ValidPath(path)
@@ -143,6 +150,10 @@ func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
 	if fs, ok := fs.(OpenFileFS); ok {
 		return fs.OpenFile(name, flag, perm)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return OpenFile(mountFS, subPath, flag, perm)
+	}
 	return nil, &PathError{Op: "open", Path: name, Err: ErrNotImplemented}
 }
 
@@ -159,6 +170,10 @@ func Mkdir(fs FS, name string, perm FileMode) error {
 	if fs, ok := fs.(MkdirFS); ok {
 		return fs.Mkdir(name, perm)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return Mkdir(mountFS, subPath, perm)
+	}
 	return &PathError{Op: "mkdir", Path: name, Err: ErrNotImplemented}
 }
 
@@ -166,6 +181,10 @@ func Mkdir(fs FS, name string, perm FileMode) error {
 func MkdirAll(fs FS, path string, perm FileMode) error {
 	if fs, ok := fs.(MkdirAllFS); ok {
 		return fs.MkdirAll(path, perm)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(path)
+		return MkdirAll(mountFS, subPath, perm)
 	}
 	if !gofs.ValidPath(path) {
 		return &PathError{Op: "mkdirall", Path: path, Err: ErrInvalid}
@@ -186,6 +205,9 @@ func Remove(fs FS, name string) error {
 	if fs, ok := fs.(RemoveFS); ok {
 		return fs.Remove(name)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		return Remove(fs.Mount(name))
+	}
 	return &PathError{Op: "remove", Path: name, Err: ErrNotImplemented}
 }
 
@@ -193,6 +215,9 @@ func Remove(fs FS, name string) error {
 func RemoveAll(fs FS, path string) error {
 	if fs, ok := fs.(RemoveAllFS); ok {
 		return fs.RemoveAll(path)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		return RemoveAll(fs.Mount(path))
 	}
 	return &PathError{Op: "removeall", Path: path, Err: ErrNotImplemented}
 }
@@ -210,6 +235,9 @@ func Stat(fs FS, name string) (FileInfo, error) {
 	if fs, ok := fs.(StatFS); ok {
 		return fs.Stat(name)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		return Stat(fs.Mount(name))
+	}
 	file, err := fs.Open(name)
 	if err != nil {
 		return nil, err
@@ -223,6 +251,9 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 	if fs, ok := fs.(LstatFS); ok {
 		return fs.Lstat(name)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		return Lstat(fs.Mount(name))
+	}
 	return nil, &PathError{Op: "lstat", Path: name, Err: ErrNotImplemented}
 }
 
@@ -230,6 +261,9 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 func LstatOrStat(fs FS, name string) (FileInfo, error) {
 	if fs, ok := fs.(LstatOrStatFS); ok {
 		return fs.LstatOrStat(name)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		return LstatOrStat(fs.Mount(name))
 	}
 	info, err := Lstat(fs, name)
 	if errors.Is(err, ErrNotImplemented) {
@@ -242,6 +276,10 @@ func LstatOrStat(fs FS, name string) (FileInfo, error) {
 func Chmod(fs FS, name string, mode FileMode) error {
 	if fs, ok := fs.(ChmodFS); ok {
 		return fs.Chmod(name, mode)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return Chmod(mountFS, subPath, mode)
 	}
 	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
@@ -256,6 +294,10 @@ func Chown(fs FS, name string, uid, gid int) error {
 	if fs, ok := fs.(ChownFS); ok {
 		return fs.Chown(name, uid, gid)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return Chown(mountFS, subPath, uid, gid)
+	}
 	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
 		return &PathError{Op: "chown", Path: name, Err: err}
@@ -268,6 +310,10 @@ func Chown(fs FS, name string, uid, gid int) error {
 func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
 	if fs, ok := fs.(ChtimesFS); ok {
 		return fs.Chtimes(name, atime, mtime)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return Chtimes(mountFS, subPath, atime, mtime)
 	}
 	file, err := OpenFile(fs, name, FlagReadOnly, 0)
 	if err != nil {
@@ -282,6 +328,9 @@ func ReadDir(fs FS, name string) ([]DirEntry, error) {
 	if fs, ok := fs.(ReadDirFS); ok {
 		return fs.ReadDir(name)
 	}
+	if fs, ok := fs.(MountFS); ok {
+		return ReadDir(fs.Mount(name))
+	}
 	return gofs.ReadDir(fs, name)
 }
 
@@ -289,6 +338,9 @@ func ReadDir(fs FS, name string) ([]DirEntry, error) {
 func ReadFile(fs FS, name string) ([]byte, error) {
 	if fs, ok := fs.(ReadFileFS); ok {
 		return fs.ReadFile(name)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		return ReadFile(fs.Mount(name))
 	}
 	return gofs.ReadFile(fs, name)
 }
