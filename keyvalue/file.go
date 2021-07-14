@@ -324,22 +324,25 @@ func (f *file) Truncate(size int64) error {
 }
 
 func (f *file) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
-	if n > 0 {
-		return nil, &hackpadfs.PathError{Op: "readdir", Path: f.path, Err: hackpadfs.ErrNotImplemented}
-	}
-
 	dirNames, err := f.ReadDirNames()
 	if err != nil {
 		return nil, err
 	}
+	readAmount := n
+	if n <= 0 {
+		readAmount = len(dirNames)
+	}
 
 	var entries []hackpadfs.DirEntry
-	for _, name := range dirNames {
+	for _, name := range dirNames[f.offset : f.offset+int64(readAmount)] {
 		entry, err := newDirEntry(f.fs, f.path, name)
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
+	}
+	if n > 0 {
+		f.offset += int64(readAmount)
 	}
 	return entries, nil
 }

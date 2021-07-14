@@ -41,7 +41,8 @@ func (f fileRecord) Sys() interface{}         { return nil }
 func (f fileRecord) ReadDirNames() ([]string, error) {
 	var names []string
 	prefix := f.path + "/"
-	if f.path == "." {
+	isRoot := f.path == "."
+	if isRoot {
 		prefix = ""
 	}
 
@@ -49,7 +50,7 @@ func (f fileRecord) ReadDirNames() ([]string, error) {
 		p := key.(string)
 		if strings.HasPrefix(p, prefix) {
 			p = strings.TrimPrefix(p, prefix)
-			if !strings.ContainsRune(p, '/') {
+			if !strings.ContainsRune(p, '/') && !(isRoot && p == ".") {
 				names = append(names, p)
 			}
 		}
