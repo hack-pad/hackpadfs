@@ -31,39 +31,45 @@ func NewFS(rootFS hackpadfs.FS) (*FS, error) {
 
 // AddMount mounts 'mount' at 'path'. The mount point must already exist as a directory.
 func (fs *FS) AddMount(path string, mount hackpadfs.FS) error {
-	err := fs.setMount(path, mount)
+	err := fs.addMount(path, mount)
 	if err != nil {
 		return &hackpadfs.PathError{Op: "mount", Path: path, Err: err}
 	}
 	return nil
 }
 
-func (fs *FS) setMount(p string, mountFS hackpadfs.FS) error {
+func (fs *FS) addMount(p string, mountFS hackpadfs.FS) error {
 	if !hackpadfs.ValidPath(p) || p == "." {
 		return hackpadfs.ErrInvalid
 	}
-	fs.mountMu.Lock()
-	defer fs.mountMu.Unlock()
-	_, loaded := fs.mounts.LoadOrStore(p, mountFS)
+	_, loaded := fs.mounts.Load(p)
 	if loaded {
 		// cannot mount at same point as existing mount
 		return hackpadfs.ErrExist
 	}
-	parentFS, subPath := fs.Mount(path.Dir(p)) // get this mount point's parent mount, verify dir exists
-	f, err := parentFS.Open(subPath)
+	fs.mountMu.Lock()
+	defer fs.mountMu.Unlock()
+
+	dir, base := path.Split(p)
+	parentFS, subPath := fs.Mount(dir) // get this mount point's parent mount, verify dir exists
+	f, err := parentFS.Open(path.Join(subPath, base))
 	if err != nil {
-		fs.mounts.Delete(p)
 		return err
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		fs.mounts.Delete(p)
 		return err
 	}
 	if !info.IsDir() {
-		fs.mounts.Delete(p)
 		return hackpadfs.ErrNotDir
+	}
+	// TODO Handle data race when directory is removed or becomes a file between the Stat and the mount.
+
+	_, loaded = fs.mounts.LoadOrStore(p, mountFS)
+	if loaded {
+		// cannot mount at same point as existing mount
+		return hackpadfs.ErrExist
 	}
 	return nil
 }
@@ -105,4 +111,18 @@ func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
 func (fs *FS) Open(name string) (hackpadfs.File, error) {
 	mountFS, subPath := fs.Mount(name)
 	return mountFS.Open(subPath)
+}
+
+type Point struct {
+	Path string
+}
+
+func (fs *FS) MountPoints() []Point {
+	var points []Point
+	fs.mounts.Range(func(key, value interface{}) bool {
+		path := key.(string)
+		points = append(points, Point{path})
+		return true
+	})
+	return points
 }
