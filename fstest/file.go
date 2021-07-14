@@ -427,7 +427,7 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		f := readDirFile(tb, file)
 		entries, err := f.ReadDir(0)
 		assert.NoError(tb, err)
-		assert.Equal(tb, []hackpadfs.DirEntry{}, entries)
+		assert.Equal(tb, 0, len(entries))
 		assert.NoError(tb, f.Close())
 	})
 
@@ -496,7 +496,7 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		entries, err := f.ReadDir(0)
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
-		assert.Equal(tb, []hackpadfs.DirEntry{}, entries)
+		assert.Equal(tb, 0, len(entries))
 	})
 
 	tbRun(tb, "list subdirectory", func(tb testing.TB) {
