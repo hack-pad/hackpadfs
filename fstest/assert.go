@@ -24,7 +24,7 @@ func tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, actual hackpad
 
 	entries := make(map[string]fsEntry)
 	walkFSEntries(tb, fs, entries, "")
-	assert.Equal(tb, expected, entries)
+	assert.Subset(tb, expected, entries)
 }
 
 func walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsEntry, dir string) {

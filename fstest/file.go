@@ -419,15 +419,14 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		return nil
 	}
 
-	tbRun(tb, "list empty root", func(tb testing.TB) {
+	tbRun(tb, "list initial root", func(tb testing.TB) {
 		_, commit := setup.FS(tb)
 		fs := commit()
 		file, err := fs.Open(".")
 		assert.NoError(tb, err)
 		f := readDirFile(tb, file)
-		entries, err := f.ReadDir(0)
+		_, err = f.ReadDir(0)
 		assert.NoError(tb, err)
-		assert.Equal(tb, 0, len(entries))
 		assert.NoError(tb, f.Close())
 	})
 
@@ -449,7 +448,7 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		sort.SliceStable(entries, func(a, b int) bool {
 			return entries[a].Name() < entries[b].Name()
 		})
-		assert.Equal(tb, []quickInfo{
+		assert.Subset(tb, []quickInfo{
 			{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true},
 			{Name: "foo", Mode: 0666},
 		}, asQuickDirInfos(tb, entries))
@@ -473,16 +472,34 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		assert.NoError(tb, err)
 		assert.NoError(tb, f.Close())
 
+		file, err = fs.Open(".")
+		f = readDirFile(tb, file)
+		entriesAll, err := f.ReadDir(0)
+		assert.NoError(tb, err)
+		assert.NoError(tb, f.Close())
+
 		var entries []hackpadfs.DirEntry
 		entries = append(entries, entries1...)
 		entries = append(entries, entries2...)
-		sort.SliceStable(entries, func(a, b int) bool {
-			return entries[a].Name() < entries[b].Name()
-		})
-		assert.Equal(tb, []quickInfo{
+		assert.Equal(tb, 2, len(entries))
+		assert.Subset(tb, asQuickDirInfos(tb, entries), asQuickDirInfos(tb, entriesAll))
+		assert.Subset(tb, []quickInfo{
 			{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true},
 			{Name: "foo", Mode: 0666},
-		}, asQuickDirInfos(tb, entries))
+		}, asQuickDirInfos(tb, entriesAll))
+	})
+
+	tbRun(tb, "readdir high N", func(tb testing.TB) {
+		setupFS, commit := setup.FS(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
+
+		fs := commit()
+		file, err := fs.Open(".")
+		assert.NoError(tb, err)
+		f := readDirFile(tb, file)
+		entries, err := f.ReadDir(100000000)
+		assert.NoError(tb, err)
+		assert.Contains(tb, asQuickDirInfos(tb, entries), quickInfo{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true})
 	})
 
 	tbRun(tb, "list empty subdirectory", func(tb testing.TB) {
