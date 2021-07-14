@@ -80,7 +80,12 @@ func (fs *FS) Mount(path string) (mount hackpadfs.FS, subPath string) {
 	if mountPath == "." {
 		return mount, path
 	}
-	subPath = strings.TrimPrefix(path, mountPath+"/")
+	subPath = path
+	subPath = strings.TrimPrefix(subPath, mountPath)
+	subPath = strings.TrimPrefix(subPath, "/")
+	if subPath == "" {
+		subPath = "."
+	}
 	return mount, subPath
 }
 
@@ -92,11 +97,12 @@ func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
 		switch {
 		case strings.HasPrefix(path, mountPath+"/"):
 			if len(mountPath) > len(resultPath) {
-				resultFS = mountFS
+				resultPath, resultFS = mountPath, mountFS
 			}
 			return true
 		case mountPath == path:
 			// exact match
+			resultPath, resultFS = mountPath, mountFS
 			return false
 		default:
 			return true
