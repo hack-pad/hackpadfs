@@ -41,6 +41,10 @@ func (r *readOnlyFile) Truncate(size int64) error {
 	return r.file.Truncate(size)
 }
 
+func (r *readOnlyFile) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
+	return r.file.ReadDir(n)
+}
+
 type writeOnlyFile struct {
 	file *file
 }
