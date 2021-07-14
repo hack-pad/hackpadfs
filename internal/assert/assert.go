@@ -182,3 +182,46 @@ func Prefix(tb testing.TB, expected, actual string) bool {
 	}
 	return true
 }
+
+// Subset asserts expected is a subset of actual
+func Subset(tb testing.TB, expected, actual interface{}) bool {
+	tb.Helper()
+
+	if !subset(tb, expected, actual) {
+		tb.Errorf("Expected is not a subset of actual:\nExpected: %#v\nActual:   %#v", expected, actual)
+		return false
+	}
+	return true
+}
+
+func subset(tb testing.TB, expected, actual interface{}) bool {
+	expectedVal := reflect.ValueOf(expected)
+	actualVal := reflect.ValueOf(actual)
+	if expectedVal.Kind() != actualVal.Kind() {
+		return false
+	}
+	switch expectedVal.Kind() {
+	case reflect.Map:
+		iter := expectedVal.MapRange()
+		for iter.Next() {
+			expectedKey, expectedValue := iter.Key(), iter.Value()
+			actualValue := actualVal.MapIndex(expectedKey)
+			if actualValue.IsZero() || !reflect.DeepEqual(expectedValue.Interface(), actualValue.Interface()) {
+				return false
+			}
+		}
+		return true
+	case reflect.Slice:
+		length := expectedVal.Len()
+		for i := 0; i < length; i++ {
+			expectedValue := expectedVal.Index(i).Interface()
+			if !contains(tb, actual, expectedValue) {
+				return false
+			}
+		}
+		return true
+	default:
+		tb.Errorf("Invalid subset type. Expected slice, got: %T", expected)
+		return false
+	}
+}
