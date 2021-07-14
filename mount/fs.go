@@ -8,6 +8,10 @@ import (
 	"github.com/hack-pad/hackpadfs"
 )
 
+var (
+	_ hackpadfs.MountFS = &FS{}
+)
+
 // FS is mesh of several file systems mounted at different paths.
 // Mount a file system with AddMount().
 //
@@ -68,7 +72,7 @@ func (fs *FS) setMount(p string, mountFS hackpadfs.FS) error {
 func (fs *FS) Mount(path string) (mount hackpadfs.FS, subPath string) {
 	mount, mountPath := fs.mountPoint(path)
 	if mountPath == "." {
-		return mount, mountPath
+		return mount, path
 	}
 	subPath = strings.TrimPrefix(path, mountPath+"/")
 	return mount, subPath
@@ -96,4 +100,9 @@ func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
 		return resultFS, "."
 	}
 	return resultFS, resultPath
+}
+
+func (fs *FS) Open(name string) (hackpadfs.File, error) {
+	mountFS, subPath := fs.Mount(name)
+	return mountFS.Open(subPath)
 }
