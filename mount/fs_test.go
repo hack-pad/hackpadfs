@@ -40,7 +40,7 @@ func TestFS(t *testing.T) {
 		TestFS: func(tb testing.TB) fstest.SetupFS {
 			memRoot, err := mem.NewFS()
 			requireNoError(tb, err)
-			requireNoError(tb, memRoot.Mkdir("foo", 0666))
+			requireNoError(tb, memRoot.Mkdir("unused", 0666))
 			memUnused, err := mem.NewFS()
 			requireNoError(tb, err)
 			fs, err := mount.NewFS(memRoot)
