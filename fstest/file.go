@@ -473,6 +473,7 @@ func TestFileReadDir(tb testing.TB, setup TestSetup) {
 		assert.NoError(tb, f.Close())
 
 		file, err = fs.Open(".")
+		assert.NoError(tb, err)
 		f = readDirFile(tb, file)
 		entriesAll, err := f.ReadDir(0)
 		assert.NoError(tb, err)

@@ -114,15 +114,18 @@ func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
 	return resultFS, resultPath
 }
 
+// Open implements hackpadfs.FS
 func (fs *FS) Open(name string) (hackpadfs.File, error) {
 	mountFS, subPath := fs.Mount(name)
 	return mountFS.Open(subPath)
 }
 
+// Point represents a mount point, including any relevant metadata
 type Point struct {
 	Path string
 }
 
+// MountPoints returns a slice of mount points every mounted file system.
 func (fs *FS) MountPoints() []Point {
 	var points []Point
 	fs.mounts.Range(func(key, value interface{}) bool {

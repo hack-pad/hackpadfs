@@ -44,6 +44,7 @@ func TestFS(t *testing.T) {
 			memUnused, err := mem.NewFS()
 			requireNoError(tb, err)
 			fs, err := mount.NewFS(memRoot)
+			requireNoError(tb, err)
 			requireNoError(tb, fs.AddMount("unused", memUnused))
 			return &allMountFS{fs}
 		},
@@ -53,6 +54,7 @@ func TestFS(t *testing.T) {
 }
 
 func TestAddMount(t *testing.T) {
+	t.Parallel()
 	newFS := func(t *testing.T) *mount.FS {
 		memRoot, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -62,6 +64,7 @@ func TestAddMount(t *testing.T) {
 	}
 
 	t.Run("invalid path", func(t *testing.T) {
+		t.Parallel()
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -72,6 +75,7 @@ func TestAddMount(t *testing.T) {
 	})
 
 	t.Run("no file at mount point", func(t *testing.T) {
+		t.Parallel()
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -82,6 +86,7 @@ func TestAddMount(t *testing.T) {
 	})
 
 	t.Run("mount point not a directory", func(t *testing.T) {
+		t.Parallel()
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -96,6 +101,7 @@ func TestAddMount(t *testing.T) {
 	})
 
 	t.Run("mount point already exists", func(t *testing.T) {
+		t.Parallel()
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -112,6 +118,7 @@ func TestAddMount(t *testing.T) {
 	})
 
 	t.Run("concurrent conflicting mounts only succeed once", func(t *testing.T) {
+		t.Parallel()
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
@@ -143,6 +150,7 @@ func TestAddMount(t *testing.T) {
 }
 
 func TestMount(t *testing.T) {
+	t.Parallel()
 	memRoot, err := mem.NewFS()
 	assert.NoError(t, err)
 	fs, err := mount.NewFS(memRoot)
