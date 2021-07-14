@@ -142,6 +142,27 @@ func TestAddMount(t *testing.T) {
 	})
 }
 
+func TestMount(t *testing.T) {
+	memRoot, err := mem.NewFS()
+	assert.NoError(t, err)
+	fs, err := mount.NewFS(memRoot)
+	assert.NoError(t, err)
+	assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0700))
+
+	{
+		memFoo, err := mem.NewFS()
+		assert.NoError(t, err)
+		assert.NoError(t, fs.AddMount("foo", memFoo))
+	}
+
+	assert.NoError(t, hackpadfs.Mkdir(fs, "foo/bar", 0700))
+	info, err := hackpadfs.Stat(fs, "foo/bar")
+	if assert.NoError(t, err) {
+		assert.Equal(t, true, info.IsDir())
+		assert.Equal(t, hackpadfs.FileMode(hackpadfs.ModeDir|0700), info.Mode())
+	}
+}
+
 // allMountFS wraps a mount.FS with the usual functions implemented by a mounted file system, so fstest won't skip the capability-based tests
 type allMountFS struct {
 	*mount.FS
