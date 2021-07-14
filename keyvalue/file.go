@@ -328,22 +328,23 @@ func (f *file) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	readAmount := n
+	start, end := f.offset, f.offset+int64(n)
 	if n <= 0 {
-		readAmount = len(dirNames)
+		start, end = 0, int64(len(dirNames))
+	} else if end > int64(len(dirNames)) {
+		end = int64(len(dirNames))
 	}
+	offsetAdd := end - start
 
 	var entries []hackpadfs.DirEntry
-	for _, name := range dirNames[f.offset : f.offset+int64(readAmount)] {
+	for _, name := range dirNames[start:end] {
 		entry, err := newDirEntry(f.fs, f.path, name)
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
 	}
-	if n > 0 {
-		f.offset += int64(readAmount)
-	}
+	f.offset += offsetAdd
 	return entries, nil
 }
 
