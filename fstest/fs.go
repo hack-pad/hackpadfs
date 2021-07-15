@@ -386,6 +386,19 @@ func TestOpen(tb testing.TB, setup TestSetup) {
 }
 
 func testOpen(tb testing.TB, setup TestSetup, openFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
+	tbRun(tb, "invalid path", func(tb testing.TB) {
+		_, commit := setup.FS(tb)
+		fs := commit()
+		_, err := openFn(fs, "foo/../bar")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			tb.Log(err.Err)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo/../bar", err.Path)
+		}
+	})
+
 	tbRun(tb, "does not exist", func(tb testing.TB) {
 		_, commit := setup.FS(tb)
 		fs := commit()
@@ -697,6 +710,19 @@ func TestRename(tb testing.TB, setup TestSetup) {
 		return nil
 	}
 
+	tbRun(tb, "oldpath does not exist", func(tb testing.TB) {
+		_, commit := setup.FS(tb)
+		fs := renameFS(tb, commit())
+		err := fs.Rename("foo", "bar")
+		if assert.IsType(tb, &hackpadfs.LinkError{}, err) {
+			err := err.(*hackpadfs.LinkError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.Equal(tb, "rename", err.Op)
+			assert.Equal(tb, "foo", err.Old)
+			assert.Equal(tb, "bar", err.New)
+		}
+	})
+
 	tbRun(tb, "inside same directory", func(tb testing.TB) {
 		setupFS, commit := setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
@@ -861,6 +887,9 @@ func testStat(tb testing.TB, setup TestSetup, stater func(testing.TB, hackpadfs.
 			Name: "foo",
 			Mode: 0755,
 		}, asQuickInfo(info))
+		assert.NotPanics(tb, func() {
+			_ = info.Sys()
+		})
 	})
 
 	tbRun(tb, "stat a directory", func(tb testing.TB) {

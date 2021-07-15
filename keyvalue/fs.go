@@ -89,12 +89,20 @@ func statAll(store *transactionOnly, paths []string) ([]hackpadfs.FileInfo, []er
 }
 
 func (fs *FS) getFiles(paths ...string) ([]*file, []error) {
-	results, err := getFileRecords(fs.store, paths)
-	if err != nil {
-		return nil, []error{err}
-	}
 	files := make([]*file, len(paths))
 	errs := make([]error, len(paths))
+	for _, path := range paths {
+		if !hackpadfs.ValidPath(path) {
+			errs[0] = hackpadfs.ErrInvalid
+			return files, errs
+		}
+	}
+
+	results, err := getFileRecords(fs.store, paths)
+	if err != nil {
+		errs[0] = err
+		return files, errs
+	}
 	for i := range paths {
 		result, err := results[i].Record, results[i].Err
 		files[i], errs[i] = &file{
@@ -246,11 +254,19 @@ func (fs *FS) Rename(oldname, newname string) error {
 		return err
 	}
 	if !oldInfo.IsDir() {
-		err := fs.setFile(newname, oldFile.fileData)
-		if err != nil {
-			return err
+		txn, err := fs.store.Transaction(TransactionOptions{Mode: TransactionReadWrite})
+		if err == nil {
+			err = fs.setFileTxn(txn, newname, oldFile.fileData)
 		}
-		return fs.setFile(oldname, nil)
+		if err == nil {
+			err = fs.setFileTxn(txn, oldname, nil)
+		}
+		if err != nil {
+			_ = txn.Abort()
+		} else {
+			_, err = txn.Commit(context.Background())
+		}
+		return err
 	}
 
 	_, err = fs.getFile(newname)

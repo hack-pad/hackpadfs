@@ -2,7 +2,6 @@ package keyvalue
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"path"
 	"time"
@@ -83,6 +82,19 @@ func (fs *FS) getFile(path string) (*file, error) {
 
 // setFile write the 'file' data to the store at 'path'. If 'file' is nil, the file is deleted.
 func (fs *FS) setFile(path string, file FileRecord) error {
+	txn, err := fs.store.Transaction(TransactionOptions{
+		Mode: TransactionReadWrite,
+	})
+	if err == nil {
+		err = fs.setFileTxn(txn, path, file)
+	}
+	if err == nil {
+		_, err = txn.Commit(context.Background())
+	}
+	return err
+}
+
+func (fs *FS) setFileTxn(txn Transaction, path string, file FileRecord) error {
 	if !hackpadfs.ValidPath(path) {
 		return hackpadfs.ErrInvalid
 	}
@@ -95,15 +107,8 @@ func (fs *FS) setFile(path string, file FileRecord) error {
 		}
 	}
 
-	txn, err := fs.store.Transaction(TransactionOptions{
-		Mode: TransactionReadWrite,
-	})
-	if err != nil {
-		return err
-	}
 	txn.Set(path, file, contents)
-	_, err = txn.Commit(context.Background())
-	return err
+	return nil
 }
 
 type fileInfo struct {
@@ -227,10 +232,10 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekEnd:
 		newOffset = int64(f.Size()) + offset
 	default:
-		return 0, fmt.Errorf("Unknown seek type: %d", whence)
+		return 0, &hackpadfs.PathError{Op: "seek", Path: f.path, Err: hackpadfs.ErrInvalid}
 	}
 	if newOffset < 0 {
-		return 0, fmt.Errorf("Cannot seek to negative offset: %d", newOffset)
+		return 0, &hackpadfs.PathError{Op: "seek", Path: f.path, Err: hackpadfs.ErrInvalid}
 	}
 	f.offset = newOffset
 	return newOffset, nil

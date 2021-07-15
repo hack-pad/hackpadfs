@@ -188,6 +188,52 @@ func TestFileSeek(tb testing.TB, setup TestSetup) {
 		return nil
 	}
 
+	tbRun(tb, "seek unknown start", func(tb testing.TB) {
+		setupFS, commit := setup.FS(tb)
+		file, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, file.Close())
+		}
+
+		fs := commit()
+		file, err = fs.Open("foo")
+		assert.NoError(tb, err)
+		f := seekFile(tb, file)
+		_, err = f.Seek(0, -1)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, "seek", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+		}
+		assert.NoError(tb, f.Close())
+	})
+
+	tbRun(tb, "seek negative offset", func(tb testing.TB) {
+		setupFS, commit := setup.FS(tb)
+		file, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, file.Close())
+		}
+
+		fs := commit()
+		file, err = fs.Open("foo")
+		assert.NoError(tb, err)
+		f := seekFile(tb, file)
+		_, err = f.Seek(-1, io.SeekStart)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, "seek", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+		}
+		assert.NoError(tb, f.Close())
+	})
+
 	tbRun(tb, "seek start", func(tb testing.TB) {
 		setupFS, commit := setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
