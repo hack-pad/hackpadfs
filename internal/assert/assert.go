@@ -206,7 +206,7 @@ func subset(tb testing.TB, expected, actual interface{}) bool {
 		for iter.Next() {
 			expectedKey, expectedValue := iter.Key(), iter.Value()
 			actualValue := actualVal.MapIndex(expectedKey)
-			if actualValue.IsZero() || !reflect.DeepEqual(expectedValue.Interface(), actualValue.Interface()) {
+			if actualValue == (reflect.Value{}) || !reflect.DeepEqual(expectedValue.Interface(), actualValue.Interface()) {
 				return false
 			}
 		}

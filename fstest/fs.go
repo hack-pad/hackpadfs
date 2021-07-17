@@ -858,6 +858,25 @@ func TestRename(tb testing.TB, setup TestSetup) {
 			"foo/baz": {Mode: 0666, Size: int64(len(fileContents))},
 		}, fs)
 	})
+
+	tbRun(tb, "non-empty directory", func(tb testing.TB) {
+		const fileContents = `hello world`
+		setupFS, commit := setup.FS(tb)
+		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		f, err := hackpadfs.Create(setupFS, "foo/bar")
+		if assert.NoError(tb, err) {
+			_, err = hackpadfs.WriteFile(f, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
+		}
+
+		fs := renameFS(tb, commit())
+		assert.NoError(tb, fs.Rename("foo", "baz"))
+		tryAssertEqualFS(tb, map[string]fsEntry{
+			"baz":     {Mode: hackpadfs.ModeDir | 0700, IsDir: true},
+			"baz/bar": {Mode: 0666, Size: int64(len(fileContents))},
+		}, fs)
+	})
 }
 
 // Stat returns a FileInfo describing the named file. If there is an error, it will be of type *PathError.
