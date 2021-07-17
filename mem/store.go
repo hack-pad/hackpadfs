@@ -2,7 +2,6 @@ package mem
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +10,8 @@ import (
 	"github.com/hack-pad/hackpadfs/keyvalue"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
+
+var _ keyvalue.TransactionStore = &store{}
 
 type store struct {
 	mu      sync.Mutex
@@ -57,14 +58,6 @@ func (f fileRecord) ReadDirNames() ([]string, error) {
 		return true
 	})
 	return names, nil
-}
-
-func (f fileRecord) String() string {
-	dataStr := "dir"
-	if !f.mode.IsDir() {
-		dataStr = fmt.Sprintf("%dB", f.data.Len())
-	}
-	return fmt.Sprintf("%q: %s %s %s", f.path, f.mode, dataStr, f.modTime.Format(time.RFC3339))
 }
 
 func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, error) {
@@ -116,7 +109,7 @@ type transaction struct {
 	results []keyvalue.OpResult
 }
 
-func (s *store) Transaction() (keyvalue.Transaction, error) {
+func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Transaction, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	txn := &transaction{
 		ctx:   ctx,
