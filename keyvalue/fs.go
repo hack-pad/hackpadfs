@@ -19,10 +19,15 @@ func NewFS(store Store) (*FS, error) {
 	fs := &FS{
 		store: newFSTransactioner(store),
 	}
-	if err := fs.Mkdir(".", 0666); err != nil && !errors.Is(err, hackpadfs.ErrExist) {
-		return nil, err
+	err := fs.Mkdir(".", 0666)
+	return fs, ignoreErrExist(err)
+}
+
+func ignoreErrExist(err error) error {
+	if errors.Is(err, hackpadfs.ErrExist) {
+		return nil
 	}
-	return fs, nil
+	return err
 }
 
 func (fs *FS) wrapperErr(op string, path string, err error) error {
@@ -66,7 +71,8 @@ func (fs *FS) MkdirAll(path string, perm hackpadfs.FileMode) error {
 		file := fs.newDir(name, perm)
 		err := file.save()
 		err = fs.wrapperErr("mkdirall", name, err)
-		if err != nil && !errors.Is(err, hackpadfs.ErrExist) {
+		err = ignoreErrExist(err)
+		if err != nil {
 			return err
 		}
 	}

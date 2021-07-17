@@ -1,24 +1,18 @@
-package keyvalue_test
+package keyvalue
 
 import (
+	"errors"
 	"testing"
 
-	"github.com/hack-pad/hackpadfs/fstest"
-	"github.com/hack-pad/hackpadfs/mem"
+	"github.com/hack-pad/hackpadfs"
+	"github.com/hack-pad/hackpadfs/internal/assert"
 )
 
-func TestFS(t *testing.T) {
-	t.Parallel()
-	options := fstest.FSOptions{
-		Name: "keyvalue",
-		TestFS: func(tb testing.TB) fstest.SetupFS {
-			fs, err := mem.NewFS() // mem.FS uses keyvalue.Store under the hood. Run the tests again here for keyvalue package coverage
-			if err != nil {
-				tb.Fatal(err)
-			}
-			return fs
-		},
-	}
-	fstest.FS(t, options)
-	fstest.File(t, options)
+func TestIgnoreErrExist(t *testing.T) {
+	someError := errors.New("some error")
+	assert.Equal(t, someError, ignoreErrExist(someError))
+
+	assert.Equal(t, nil, ignoreErrExist(hackpadfs.ErrExist))
+
+	assert.Equal(t, nil, ignoreErrExist(&hackpadfs.PathError{Err: hackpadfs.ErrExist}))
 }
