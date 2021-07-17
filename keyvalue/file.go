@@ -82,22 +82,6 @@ func (fs *FS) getFile(path string) (*file, error) {
 
 // setFile write the 'file' data to the store at 'path'. If 'file' is nil, the file is deleted.
 func (fs *FS) setFile(path string, file FileRecord) error {
-	txn, err := fs.store.Transaction(TransactionOptions{
-		Mode: TransactionReadWrite,
-	})
-	if err == nil {
-		err = fs.setFileTxn(txn, path, file)
-	}
-	if err == nil {
-		_, err = txn.Commit(context.Background())
-	}
-	return err
-}
-
-func (fs *FS) setFileTxn(txn Transaction, path string, file FileRecord) error {
-	if !hackpadfs.ValidPath(path) {
-		return hackpadfs.ErrInvalid
-	}
 	var contents blob.Blob
 	if file != nil && file.Mode().IsRegular() {
 		var err error
@@ -105,6 +89,25 @@ func (fs *FS) setFileTxn(txn Transaction, path string, file FileRecord) error {
 		if err != nil {
 			return err
 		}
+	}
+	txn, err := fs.store.Transaction(TransactionOptions{
+		Mode: TransactionReadWrite,
+	})
+	if err == nil {
+		err = fs.setFileTxn(txn, path, file, contents)
+	}
+	if err == nil {
+		_, err = txn.Commit(context.Background())
+	}
+	return err
+}
+
+func (fs *FS) setFileTxn(txn Transaction, path string, file FileRecord, contents blob.Blob) error {
+	if !hackpadfs.ValidPath(path) {
+		return hackpadfs.ErrInvalid
+	}
+	if contents == nil && file != nil && file.Mode().IsRegular() {
+		panic("Contents must not be nil for regular file")
 	}
 
 	txn.Set(path, file, contents)

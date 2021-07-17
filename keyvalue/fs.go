@@ -254,12 +254,16 @@ func (fs *FS) Rename(oldname, newname string) error {
 		return err
 	}
 	if !oldInfo.IsDir() {
+		contents, err := oldFile.fileData.Data()
+		if err != nil {
+			return err
+		}
 		txn, err := fs.store.Transaction(TransactionOptions{Mode: TransactionReadWrite})
 		if err == nil {
-			err = fs.setFileTxn(txn, newname, oldFile.fileData)
+			err = fs.setFileTxn(txn, newname, oldFile.fileData, contents)
 		}
 		if err == nil {
-			err = fs.setFileTxn(txn, oldname, nil)
+			err = fs.setFileTxn(txn, oldname, nil, nil)
 		}
 		if err != nil {
 			_ = txn.Abort()
