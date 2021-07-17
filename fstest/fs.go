@@ -891,6 +891,17 @@ func TestStat(tb testing.TB, setup TestSetup) {
 }
 
 func testStat(tb testing.TB, setup TestSetup, stater func(testing.TB, hackpadfs.FS, string) (hackpadfs.FileInfo, error)) {
+	tbRun(tb, "invalid path", func(tb testing.TB) {
+		_, commit := setup.FS(tb)
+		fs := commit()
+		_, err := stater(tb, fs, "foo/../bar")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, "foo/../bar", err.Path)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+		}
+	})
+
 	tbRun(tb, "stat a file", func(tb testing.TB) {
 		setupFS, commit := setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
