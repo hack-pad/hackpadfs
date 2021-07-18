@@ -1,6 +1,6 @@
 // +build wasm
 
-package indexeddb
+package idbblob
 
 import (
 	"errors"
@@ -22,40 +22,44 @@ var (
 		blob.SetBlob
 		blob.GrowBlob
 		blob.TruncateBlob
-	} = &jsBlob{}
+	} = &Blob{}
 )
 
-type jsBlob struct {
+type Blob struct {
 	bytes   atomic.Value // *blob.Bytes
 	jsValue atomic.Value // js.Value
 	length  int64
 }
 
-func newJSBlob(buf js.Value) (_ blob.Blob, returnedErr error) {
+func New(buf js.Value) (_ *Blob, returnedErr error) {
 	defer exception.Catch(&returnedErr)
 	if !buf.Truthy() {
-		return blob.NewBytes(nil), nil
+		return FromBlob(blob.NewBytes(nil)), nil
 	}
 	if !buf.InstanceOf(uint8Array) {
 		return nil, fmt.Errorf("invalid JS array type: %v", buf)
 	}
-	b := &jsBlob{}
-	b.jsValue.Store(buf)
-	atomic.StoreInt64(&b.length, int64(buf.Length()))
-	return b, nil
+	return newBlob(buf), nil
 }
 
-func toJSValue(b blob.Blob) js.Value {
+func newBlob(buf js.Value) *Blob {
+	b := &Blob{}
+	b.jsValue.Store(buf)
+	atomic.StoreInt64(&b.length, int64(buf.Length()))
+	return b
+}
+
+func FromBlob(b blob.Blob) *Blob {
 	if b, ok := b.(js.Wrapper); ok {
-		return b.JSValue()
+		return newBlob(b.JSValue())
 	}
 	buf := b.Bytes()
 	jsBuf := uint8Array.New(len(buf))
 	js.CopyBytesToJS(jsBuf, buf)
-	return jsBuf
+	return newBlob(jsBuf)
 }
 
-func (b *jsBlob) currentBytes() *blob.Bytes {
+func (b *Blob) currentBytes() *blob.Bytes {
 	buf := b.bytes.Load()
 	if buf != nil {
 		return buf.(*blob.Bytes)
@@ -63,7 +67,7 @@ func (b *jsBlob) currentBytes() *blob.Bytes {
 	return nil
 }
 
-func (b *jsBlob) Bytes() []byte {
+func (b *Blob) Bytes() []byte {
 	if buf := b.currentBytes(); buf != nil {
 		return buf.Bytes()
 	}
@@ -74,11 +78,11 @@ func (b *jsBlob) Bytes() []byte {
 	return buf
 }
 
-func (b *jsBlob) JSValue() js.Value {
+func (b *Blob) JSValue() js.Value {
 	return b.jsValue.Load().(js.Value)
 }
 
-func (b *jsBlob) Len() int {
+func (b *Blob) Len() int {
 	return int(atomic.LoadInt64(&b.length))
 }
 
@@ -87,15 +91,15 @@ func catchErr(fn func() error) (returnedErr error) {
 	return fn()
 }
 
-func (b *jsBlob) View(start, end int64) (blob.Blob, error) {
+func (b *Blob) View(start, end int64) (blob.Blob, error) {
 	if start == 0 && end == atomic.LoadInt64(&b.length) {
 		return b, nil
 	}
 
-	var newBlob *jsBlob
+	var newBlob *Blob
 	err := catchErr(func() error {
-		b, err := newJSBlob(b.JSValue().Call("subarray", start, end))
-		newBlob, _ = b.(*jsBlob)
+		var err error
+		newBlob, err = New(b.JSValue().Call("subarray", start, end))
 		return err
 	})
 	if err != nil {
@@ -112,7 +116,7 @@ func (b *jsBlob) View(start, end int64) (blob.Blob, error) {
 	return newBlob, nil
 }
 
-func (b *jsBlob) Slice(start, end int64) (blob.Blob, error) {
+func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 	if start < 0 || start > int64(b.Len()) {
 		return nil, fmt.Errorf("Start index out of bounds: %d", start)
 	}
@@ -120,22 +124,21 @@ func (b *jsBlob) Slice(start, end int64) (blob.Blob, error) {
 		return nil, fmt.Errorf("End index out of bounds: %d", end)
 	}
 
-	newBlob, err := newJSBlob(b.JSValue().Call("slice", start, end))
+	newBlob, err := New(b.JSValue().Call("slice", start, end))
 	if err != nil {
 		return nil, err
 	}
 	if buf := b.currentBytes(); buf != nil {
-		newJSBlob := newBlob.(*jsBlob)
 		newBytes, err := buf.Slice(start, end)
 		if err != nil {
 			panic(err)
 		}
-		newJSBlob.bytes.Store(newBytes)
+		newBlob.bytes.Store(newBytes)
 	}
 	return newBlob, nil
 }
 
-func (b *jsBlob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
+func (b *Blob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
 	if srcStart < 0 {
 		return 0, errors.New("negative offset")
 	}
@@ -144,7 +147,7 @@ func (b *jsBlob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
 	}
 
 	err = catchErr(func() error {
-		b.JSValue().Call("set", toJSValue(dest), srcStart)
+		b.JSValue().Call("set", FromBlob(dest), srcStart)
 		return nil
 	})
 	if err != nil {
@@ -161,7 +164,7 @@ func (b *jsBlob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
 	return n, nil
 }
 
-func (b *jsBlob) Grow(off int64) error {
+func (b *Blob) Grow(off int64) error {
 	newLength := atomic.LoadInt64(&b.length) + off
 
 	err := catchErr(func() error {
@@ -185,7 +188,7 @@ func (b *jsBlob) Grow(off int64) error {
 	return nil
 }
 
-func (b *jsBlob) Truncate(size int64) error {
+func (b *Blob) Truncate(size int64) error {
 	if atomic.LoadInt64(&b.length) < size {
 		return nil
 	}

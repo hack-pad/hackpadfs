@@ -10,6 +10,7 @@ import (
 
 	"github.com/hack-pad/go-indexeddb/idb"
 	"github.com/hack-pad/hackpadfs"
+	"github.com/hack-pad/hackpadfs/indexeddb/idbblob"
 	"github.com/hack-pad/hackpadfs/keyvalue"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
@@ -116,7 +117,7 @@ func (s *store) getFileData(path string) func() (blob.Blob, error) {
 		if err != nil {
 			return nil, err
 		}
-		return newJSBlob(value)
+		return idbblob.New(value)
 	}
 }
 
@@ -233,7 +234,7 @@ func deleteRecord(infos, contents *idb.ObjectStore, name string) error {
 }
 
 func setFileContents(contents *idb.ObjectStore, name string, data blob.Blob) error {
-	_, err := contents.PutKey(js.ValueOf(name), toJSValue(data))
+	_, err := contents.PutKey(js.ValueOf(name), idbblob.FromBlob(data).JSValue())
 	return err
 }
 
