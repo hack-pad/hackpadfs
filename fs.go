@@ -192,8 +192,18 @@ func MkdirAll(fs FS, path string, perm FileMode) error {
 	for i := 0; i < len(path); i++ {
 		if path[i] == '/' {
 			err := Mkdir(fs, path[:i], perm)
-			if err != nil && !errors.Is(err, ErrExist) {
-				return err
+			if err != nil {
+				pathErr, ok := err.(*PathError)
+				if !ok || !errors.Is(err, ErrExist) {
+					return err
+				}
+				info, statErr := Stat(fs, pathErr.Path)
+				if statErr != nil {
+					return err
+				}
+				if !info.IsDir() {
+					return &PathError{Op: "mkdir", Path: pathErr.Path, Err: ErrNotDir}
+				}
 			}
 		}
 	}
