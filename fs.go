@@ -72,12 +72,6 @@ type LstatFS interface {
 	Lstat(name string) (FileInfo, error)
 }
 
-// LstatOrStatFS is an FS that can attempt to run Lstat if available, falling back to Stat otherwise.
-type LstatOrStatFS interface {
-	FS
-	LstatOrStat(name string) (FileInfo, error)
-}
-
 // ChmodFS is an FS that can change file or directory permissions. Should match the behavior of os.Chmod().
 type ChmodFS interface {
 	FS
@@ -269,9 +263,6 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 
 // LstatOrStat attempts to call an optimized fs.LstatOrStat(), fs.Lstat(), or fs.Stat() - whichever is supported first.
 func LstatOrStat(fs FS, name string) (FileInfo, error) {
-	if fs, ok := fs.(LstatOrStatFS); ok {
-		return fs.LstatOrStat(name)
-	}
 	if fs, ok := fs.(MountFS); ok {
 		return LstatOrStat(fs.Mount(name))
 	}
