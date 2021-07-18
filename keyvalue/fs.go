@@ -9,6 +9,8 @@ import (
 	"github.com/hack-pad/hackpadfs"
 )
 
+const chmodBits = hackpadfs.ModePerm | hackpadfs.ModeSetuid | hackpadfs.ModeSetgid | hackpadfs.ModeSticky // Only a subset of bits are allowed to be changed. Documented under os.Chmod()
+
 // FS wraps a Store as a file system.
 type FS struct {
 	store *transactionOnly
@@ -318,7 +320,6 @@ func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 		return fs.wrapperErr("chmod", name, err)
 	}
 
-	const chmodBits = hackpadfs.ModePerm | hackpadfs.ModeSetuid | hackpadfs.ModeSetgid | hackpadfs.ModeSticky // Only a subset of bits are allowed to be changed. Documented under os.Chmod()
 	newMode := (file.Mode() & ^chmodBits) | (mode & chmodBits)
 	file.modeOverride = &newMode
 	return file.save()

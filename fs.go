@@ -282,7 +282,7 @@ func Chmod(fs FS, name string, mode FileMode) error {
 		mountFS, subPath := fs.Mount(name)
 		return Chmod(mountFS, subPath, mode)
 	}
-	file, err := OpenFile(fs, name, FlagReadOnly, 0)
+	file, err := fs.Open(name)
 	if err != nil {
 		return &PathError{Op: "chmod", Path: name, Err: err}
 	}
@@ -299,7 +299,7 @@ func Chown(fs FS, name string, uid, gid int) error {
 		mountFS, subPath := fs.Mount(name)
 		return Chown(mountFS, subPath, uid, gid)
 	}
-	file, err := OpenFile(fs, name, FlagReadOnly, 0)
+	file, err := fs.Open(name)
 	if err != nil {
 		return &PathError{Op: "chown", Path: name, Err: err}
 	}
@@ -316,7 +316,7 @@ func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
 		mountFS, subPath := fs.Mount(name)
 		return Chtimes(mountFS, subPath, atime, mtime)
 	}
-	file, err := OpenFile(fs, name, FlagReadOnly, 0)
+	file, err := fs.Open(name)
 	if err != nil {
 		return &PathError{Op: "chtimes", Path: name, Err: err}
 	}

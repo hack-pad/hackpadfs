@@ -45,6 +45,10 @@ func (r *readOnlyFile) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
 	return r.file.ReadDir(n)
 }
 
+func (r *readOnlyFile) Chmod(mode hackpadfs.FileMode) error {
+	return r.file.Chmod(mode)
+}
+
 type writeOnlyFile struct {
 	file *file
 }
@@ -84,4 +88,8 @@ func (w *writeOnlyFile) Stat() (hackpadfs.FileInfo, error) {
 
 func (w *writeOnlyFile) Truncate(size int64) error {
 	return w.file.Truncate(size)
+}
+
+func (w *writeOnlyFile) Chmod(mode hackpadfs.FileMode) error {
+	return w.file.Chmod(mode)
 }

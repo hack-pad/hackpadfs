@@ -51,7 +51,7 @@ func makeSimplerFS(t *testing.T) *simplerFS {
 	return &simplerFS{fs}
 }
 
-func TestMkdirAllFS(t *testing.T) {
+func TestMkdirAll(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid path", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestMkdirAllFS(t *testing.T) {
 	t.Run("file exists", func(t *testing.T) {
 		t.Parallel()
 		fs := makeSimplerFS(t)
-		f, err := fs.simpler.OpenFile("foo", hackpadfs.FlagReadWrite|hackpadfs.FlagCreate, 0600)
+		f, err := hackpadfs.Create(fs.simpler, "foo")
 		requireNoError(t, err)
 		requireNoError(t, f.Close())
 		err = hackpadfs.MkdirAll(fs, "foo/bar", 0700)
@@ -95,4 +95,15 @@ func TestMkdirAllFS(t *testing.T) {
 			assert.Equal(t, true, errors.Is(err, hackpadfs.ErrNotDir))
 		}
 	})
+}
+
+func TestChmod(t *testing.T) {
+	t.Parallel()
+	fs := makeSimplerFS(t)
+	f, err := hackpadfs.Create(fs.simpler, "foo")
+	requireNoError(t, err)
+	requireNoError(t, f.Close())
+
+	err = hackpadfs.Chmod(fs, "foo", 0)
+	assert.NoError(t, err)
 }

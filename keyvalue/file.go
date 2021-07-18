@@ -384,3 +384,9 @@ func (d *dirEntry) Type() hackpadfs.FileMode {
 func (d *dirEntry) Info() (hackpadfs.FileInfo, error) {
 	return d.info, nil
 }
+
+func (f *file) Chmod(mode hackpadfs.FileMode) error {
+	newMode := (f.Mode() & ^chmodBits) | (mode & chmodBits)
+	f.modeOverride = &newMode
+	return f.save()
+}
