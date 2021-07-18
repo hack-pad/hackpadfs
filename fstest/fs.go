@@ -902,6 +902,15 @@ func testStat(tb testing.TB, setup TestSetup, stater func(testing.TB, hackpadfs.
 		}
 	})
 
+	tbRun(tb, "stat root", func(tb testing.TB) {
+		_, commit := setup.FS(tb)
+		fs := commit()
+		info, err := stater(tb, fs, ".")
+		if assert.NoError(tb, err) {
+			assert.Equal(tb, true, info.IsDir())
+		}
+	})
+
 	tbRun(tb, "stat a file", func(tb testing.TB) {
 		setupFS, commit := setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
