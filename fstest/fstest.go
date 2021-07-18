@@ -154,6 +154,7 @@ func runFS(tb testing.TB, options FSOptions) {
 	newSubtask("fs.MkdirAll", TestMkdirAll).Run(tb, options)
 	newSubtask("fs.Open", TestOpen).Run(tb, options)
 	newSubtask("fs.OpenFile", TestOpenFile).Run(tb, options)
+	newSubtask("fs.ReadFile", TestReadFile).Run(tb, options)
 	newSubtask("fs.Remove", TestRemove).Run(tb, options)
 	newSubtask("fs.RemoveAll", TestRemoveAll).Run(tb, options)
 	newSubtask("fs.Rename", TestRename).Run(tb, options)

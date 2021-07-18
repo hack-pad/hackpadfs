@@ -1078,4 +1078,41 @@ func TestChtimes(tb testing.TB, setup TestSetup) {
 	})
 }
 
+func TestReadFile(tb testing.TB, setup TestSetup) {
+	readFileFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.ReadFileFS {
+		if fs, ok := fs.(hackpadfs.ReadFileFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a ReadFileFS")
+		return nil
+	}
+
+	tbRun(tb, "not exists", func(tb testing.TB) {
+		_, commit := setup.FS(tb)
+		fs := readFileFS(tb, commit())
+		_, err := fs.ReadFile("foo")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+	})
+
+	tbRun(tb, "exists", func(tb testing.TB) {
+		setupFS, commit := setup.FS(tb)
+		const contents = "hello"
+		f, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			hackpadfs.WriteFile(f, []byte(contents))
+			assert.NoError(tb, f.Close())
+		}
+
+		fs := readFileFS(tb, commit())
+		buf, err := fs.ReadFile("foo")
+		assert.NoError(tb, err)
+		assert.Equal(tb, []byte(contents), buf)
+	})
+}
+
 // TODO Symlink
