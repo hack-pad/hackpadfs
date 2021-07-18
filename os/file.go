@@ -3,7 +3,6 @@ package os
 import (
 	"io"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/hack-pad/hackpadfs"
@@ -30,11 +29,6 @@ func (f *file) Chown(uid, gid int) error {
 
 func (f *file) Close() error {
 	return f.fs.wrapRelPathErr(f.osFile.Close())
-}
-
-// Fd() returns this file's file descriptor.
-func (f *file) Fd() uintptr {
-	return f.osFile.Fd()
 }
 
 // Name returns this file's name.
@@ -89,11 +83,6 @@ func (f *file) Stat() (hackpadfs.FileInfo, error) {
 // Sync implements hackpadfs.SycnerFile
 func (f *file) Sync() error {
 	return f.fs.wrapRelPathErr(f.osFile.Sync())
-}
-
-func (f *file) SyscallConn() (syscall.RawConn, error) {
-	conn, err := f.osFile.SyscallConn()
-	return conn, f.fs.wrapRelPathErr(err)
 }
 
 // Truncate implements hackpadfs.TruncaterFile
