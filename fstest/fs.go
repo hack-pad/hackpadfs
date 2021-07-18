@@ -1104,7 +1104,8 @@ func TestReadFile(tb testing.TB, setup TestSetup) {
 		const contents = "hello"
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
-			hackpadfs.WriteFile(f, []byte(contents))
+			_, err := hackpadfs.WriteFile(f, []byte(contents))
+			assert.NoError(tb, err)
 			assert.NoError(tb, f.Close())
 		}
 
