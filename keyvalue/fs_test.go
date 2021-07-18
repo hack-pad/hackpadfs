@@ -9,6 +9,7 @@ import (
 )
 
 func TestIgnoreErrExist(t *testing.T) {
+	t.Parallel()
 	someError := errors.New("some error")
 	assert.Equal(t, someError, ignoreErrExist(someError))
 

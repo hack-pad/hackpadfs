@@ -7,6 +7,7 @@ import (
 	"github.com/hack-pad/hackpadfs/mount"
 )
 
+// NewFS returns a wrapped MountFS with many of the basic operations supported. Great for testing interface implementation or MountFS-specific behavior.
 func NewFS(fs *mount.FS) interface {
 	hackpadfs.FS
 	hackpadfs.OpenFileFS

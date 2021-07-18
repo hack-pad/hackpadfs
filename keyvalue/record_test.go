@@ -14,6 +14,7 @@ func TestBaseFileRecordData(t *testing.T) {
 	t.Parallel()
 
 	t.Run("not dir not regular file", func(t *testing.T) {
+		t.Parallel()
 		b := NewBaseFileRecord(0, time.Now(), 0, nil, nil, nil)
 		_, err := b.Data()
 		assert.Error(t, err)
@@ -21,6 +22,7 @@ func TestBaseFileRecordData(t *testing.T) {
 	})
 
 	t.Run("is dir", func(t *testing.T) {
+		t.Parallel()
 		b := NewBaseFileRecord(0, time.Now(), hackpadfs.ModeDir, nil, nil, nil)
 		_, err := b.Data()
 		assert.Error(t, err)
@@ -28,6 +30,7 @@ func TestBaseFileRecordData(t *testing.T) {
 	})
 
 	t.Run("regular file", func(t *testing.T) {
+		t.Parallel()
 		expectedData, expectedErr := blob.NewBytesLength(10), errors.New("some error")
 		b := NewBaseFileRecord(0, time.Now(), 0, nil, func() (blob.Blob, error) {
 			return expectedData, expectedErr
@@ -42,6 +45,7 @@ func TestBaseFileRecordReadDirNames(t *testing.T) {
 	t.Parallel()
 
 	t.Run("dir and missing dir names", func(t *testing.T) {
+		t.Parallel()
 		b := NewBaseFileRecord(0, time.Now(), hackpadfs.ModeDir, nil, nil, nil)
 		_, err := b.ReadDirNames()
 		assert.Error(t, err)
@@ -49,6 +53,7 @@ func TestBaseFileRecordReadDirNames(t *testing.T) {
 	})
 
 	t.Run("is dir", func(t *testing.T) {
+		t.Parallel()
 		expectedDirNames, expectedErr := []string{"foo"}, errors.New("some error")
 		b := NewBaseFileRecord(0, time.Now(), 0, nil, nil, func() ([]string, error) {
 			return expectedDirNames, expectedErr
@@ -59,6 +64,7 @@ func TestBaseFileRecordReadDirNames(t *testing.T) {
 	})
 
 	t.Run("regular file", func(t *testing.T) {
+		t.Parallel()
 		b := NewBaseFileRecord(0, time.Now(), 0, nil, nil, nil)
 		_, err := b.ReadDirNames()
 		assert.Error(t, err)
@@ -67,6 +73,7 @@ func TestBaseFileRecordReadDirNames(t *testing.T) {
 }
 
 func TestBaseFileRecordSys(t *testing.T) {
+	t.Parallel()
 	const someSys = "some sys"
 	assert.Equal(t, someSys, (&BaseFileRecord{sys: someSys}).Sys())
 }
