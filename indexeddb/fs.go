@@ -75,7 +75,11 @@ func (fs *FS) Clear(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return txn.Await(ctx)
+	err = txn.Await(ctx)
+	if err != nil {
+		return err
+	}
+	return fs.Mkdir(".", 0666)
 }
 
 // Open implements hackpadfs.FS
