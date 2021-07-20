@@ -25,12 +25,14 @@ var (
 	} = &Blob{}
 )
 
+// Blob is a blob.Blob for JS environments, optimized for reading and writing to a Uint8Array without en/decoding back and forth.
 type Blob struct {
 	bytes   atomic.Value // *blob.Bytes
 	jsValue atomic.Value // js.Value
 	length  int64
 }
 
+// New creates a Blob wrapping the given JS Uint8Array buffer.
 func New(buf js.Value) (_ *Blob, returnedErr error) {
 	defer exception.Catch(&returnedErr)
 	if !buf.Truthy() {
@@ -49,6 +51,7 @@ func newBlob(buf js.Value) *Blob {
 	return b
 }
 
+// FromBlob creates a Blob from the given blob.Blob, either wrapping the JS value or copying the bytes if incompatible.
 func FromBlob(b blob.Blob) *Blob {
 	if b, ok := b.(js.Wrapper); ok {
 		return newBlob(b.JSValue())
@@ -67,6 +70,7 @@ func (b *Blob) currentBytes() *blob.Bytes {
 	return nil
 }
 
+// Bytes implememts blob.Blob
 func (b *Blob) Bytes() []byte {
 	if buf := b.currentBytes(); buf != nil {
 		return buf.Bytes()
@@ -78,10 +82,12 @@ func (b *Blob) Bytes() []byte {
 	return buf
 }
 
+// JSValue implements js.Wrapper
 func (b *Blob) JSValue() js.Value {
 	return b.jsValue.Load().(js.Value)
 }
 
+// Len implements blob.Blob
 func (b *Blob) Len() int {
 	return int(atomic.LoadInt64(&b.length))
 }
@@ -91,6 +97,7 @@ func catchErr(fn func() error) (returnedErr error) {
 	return fn()
 }
 
+// View implements blob.ViewBlob
 func (b *Blob) View(start, end int64) (blob.Blob, error) {
 	if start == 0 && end == atomic.LoadInt64(&b.length) {
 		return b, nil
@@ -116,6 +123,7 @@ func (b *Blob) View(start, end int64) (blob.Blob, error) {
 	return newBlob, nil
 }
 
+// Slice implements blob.SliceBlob
 func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 	if start < 0 || start > int64(b.Len()) {
 		return nil, fmt.Errorf("Start index out of bounds: %d", start)
@@ -138,6 +146,7 @@ func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 	return newBlob, nil
 }
 
+// Set implements blob.SetBlob
 func (b *Blob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
 	if srcStart < 0 {
 		return 0, errors.New("negative offset")
@@ -164,6 +173,7 @@ func (b *Blob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
 	return n, nil
 }
 
+// Grow implements blob.GrowBlob
 func (b *Blob) Grow(off int64) error {
 	newLength := atomic.LoadInt64(&b.length) + off
 
@@ -188,6 +198,7 @@ func (b *Blob) Grow(off int64) error {
 	return nil
 }
 
+// Truncate implements TruncateBlob
 func (b *Blob) Truncate(size int64) error {
 	if atomic.LoadInt64(&b.length) < size {
 		return nil
