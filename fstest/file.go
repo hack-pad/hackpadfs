@@ -321,25 +321,51 @@ func TestFileWrite(tb testing.TB, setup TestSetup) {
 }
 
 func testFileWrite(tb testing.TB, setup TestSetup, writer func(hackpadfs.File, []byte) (int, error)) {
-	const fileContents = "hello world"
-	setupFS, commit := setup.FS(tb)
-	f, err := hackpadfs.Create(setupFS, "foo")
-	if assert.NoError(tb, err) {
-		assert.NoError(tb, f.Close())
-	}
+	tbRun(tb, "write-read", func(tb testing.TB) {
+		const fileContents = "hello world"
+		setupFS, commit := setup.FS(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
 
-	fs := commit()
-	f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
-	assert.NoError(tb, err)
-	n, err := writer(f, []byte(fileContents))
-	assert.Equal(tb, len(fileContents), n)
-	assert.NoError(tb, err)
-	assert.NoError(tb, f.Close())
-	f, err = fs.Open("foo")
-	assert.NoError(tb, err)
-	buf := make([]byte, len(fileContents))
-	_, _ = f.Read(buf)
-	assert.Equal(tb, fileContents, string(buf))
+		fs := commit()
+		f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		assert.NoError(tb, err)
+		n, err := writer(f, []byte(fileContents))
+		assert.Equal(tb, len(fileContents), n)
+		assert.NoError(tb, err)
+		assert.NoError(tb, f.Close())
+		f, err = fs.Open("foo")
+		assert.NoError(tb, err)
+		buf := make([]byte, len(fileContents))
+		_, _ = f.Read(buf)
+		assert.Equal(tb, fileContents, string(buf))
+	})
+
+	tbRun(tb, "write-truncate-write-read", func(tb testing.TB) {
+		const fileContents = "hello world"
+		setupFS, commit := setup.FS(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			_, err := writer(f, []byte(fileContents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
+		}
+
+		fs := commit()
+		f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite|hackpadfs.FlagTruncate, 0)
+		assert.NoError(tb, err)
+		n, err := writer(f, []byte(fileContents))
+		assert.Equal(tb, len(fileContents), n)
+		assert.NoError(tb, err)
+		assert.NoError(tb, f.Close())
+		f, err = fs.Open("foo")
+		assert.NoError(tb, err)
+		buf := make([]byte, len(fileContents))
+		_, _ = f.Read(buf)
+		assert.Equal(tb, fileContents, string(buf))
+	})
 }
 
 func TestFileWriteAt(tb testing.TB, setup TestSetup) {

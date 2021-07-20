@@ -2,6 +2,7 @@ package keyvalue
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hack-pad/hackpadfs"
@@ -150,9 +151,13 @@ func (r *runOnceFileRecord) ReadDirNames() ([]string, error) {
 
 func (r *runOnceFileRecord) Size() int64 {
 	r.sizeOnce.Do(func() {
-		r.size = r.record.Size()
+		atomic.StoreInt64(&r.size, r.record.Size())
 	})
 	return r.size
+}
+
+func (r *runOnceFileRecord) setSize(size int64) {
+	atomic.StoreInt64(&r.size, size)
 }
 
 func (r *runOnceFileRecord) Mode() hackpadfs.FileMode {
