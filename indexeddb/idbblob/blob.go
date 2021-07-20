@@ -44,6 +44,13 @@ func New(buf js.Value) (_ *Blob, returnedErr error) {
 	return newBlob(buf), nil
 }
 
+// NewLength creates a zero-value Blob with 'length' bytes.
+func NewLength(length int) (_ *Blob, err error) {
+	defer exception.Catch(&err)
+	jsBuf := uint8Array.New(length)
+	return newBlob(jsBuf), nil
+}
+
 func newBlob(buf js.Value) *Blob {
 	b := &Blob{}
 	b.jsValue.Store(buf)
