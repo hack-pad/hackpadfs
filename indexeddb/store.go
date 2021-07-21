@@ -23,15 +23,19 @@ var (
 )
 
 type store struct {
-	db *idb.Database
+	db      *idb.Database
+	options Options
 }
 
-func newStore(db *idb.Database) *store {
-	return &store{db: db}
+func newStore(db *idb.Database, options Options) *store {
+	return &store{db: db, options: options}
 }
 
 func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, error) {
-	txn, err := s.db.Transaction(idb.TransactionReadOnly, infoStore)
+	txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
+		Mode:       idb.TransactionReadOnly,
+		Durability: s.options.TransactionDurability,
+	}, infoStore)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +102,10 @@ func (g *getFileRequest) parseResult(result js.Value, err error) (keyvalue.FileR
 
 func (s *store) getFileData(path string) func() (blob.Blob, error) {
 	return func() (blob.Blob, error) {
-		txn, err := s.db.Transaction(idb.TransactionReadOnly, contentsStore)
+		txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
+			Mode:       idb.TransactionReadOnly,
+			Durability: s.options.TransactionDurability,
+		}, contentsStore)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +130,10 @@ func (s *store) getFileData(path string) func() (blob.Blob, error) {
 
 func (s *store) getDirNames(name string) func() ([]string, error) {
 	return func() (_ []string, err error) {
-		txn, err := s.db.Transaction(idb.TransactionReadOnly, infoStore)
+		txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
+			Mode:       idb.TransactionReadOnly,
+			Durability: s.options.TransactionDurability,
+		}, infoStore)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +188,10 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 		}
 	}
 
-	txn, err := s.db.Transaction(idb.TransactionReadWrite, stores[0], stores[1:]...)
+	txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
+		Mode:       idb.TransactionReadWrite,
+		Durability: s.options.TransactionDurability,
+	}, stores[0], stores[1:]...)
 	if err != nil {
 		return err
 	}
@@ -326,7 +339,10 @@ func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Trans
 		stores = append(stores, contentsStore)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	txn, err := s.db.Transaction(mode, stores[0], stores[1:]...)
+	txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
+		Mode:       mode,
+		Durability: s.options.TransactionDurability,
+	}, stores[0], stores[1:]...)
 	return &transaction{
 		ctx:     ctx,
 		abort:   cancel,

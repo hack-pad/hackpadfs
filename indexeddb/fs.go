@@ -26,9 +26,18 @@ type FS struct {
 	db *idb.Database
 }
 
+// Options provides configuration options for a new FS.
+type Options struct {
+	Factory               *idb.Factory
+	TransactionDurability idb.TransactionDurability
+}
+
 // NewFS returns a new FS.
-func NewFS(ctx context.Context, name string, factory *idb.Factory) (*FS, error) {
-	openRequest, err := factory.Open(ctx, name, fsVersion, func(db *idb.Database, oldVersion, newVersion uint) error {
+func NewFS(ctx context.Context, name string, options Options) (*FS, error) {
+	if options.Factory == nil {
+		options.Factory = idb.Global()
+	}
+	openRequest, err := options.Factory.Open(ctx, name, fsVersion, func(db *idb.Database, oldVersion, newVersion uint) error {
 		_, err := db.CreateObjectStore(contentsStore, idb.ObjectStoreOptions{})
 		if err != nil {
 			return err
@@ -47,7 +56,7 @@ func NewFS(ctx context.Context, name string, factory *idb.Factory) (*FS, error) 
 	if err != nil {
 		return nil, err
 	}
-	kv, err := keyvalue.NewFS(newStore(db))
+	kv, err := keyvalue.NewFS(newStore(db, options))
 	return &FS{
 		kv: kv,
 		db: db,

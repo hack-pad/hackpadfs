@@ -26,7 +26,7 @@ func makeFS(tb testing.TB) *FS {
 
 	factory := idb.Global()
 
-	fs, err := NewFS(context.Background(), name, factory)
+	fs, err := NewFS(context.Background(), name, Options{})
 	if err != nil {
 		tb.Fatal(err)
 	}
