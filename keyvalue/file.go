@@ -162,11 +162,7 @@ func (fs *FS) newFile(path string, flag int, mode hackpadfs.FileMode) *file {
 }
 
 func (f *fileData) save() error {
-	err := f.fs.setFile(f.path, f)
-	if err == nil && f.data != nil {
-		f.setSize(int64(f.data.Len()))
-	}
-	return err
+	return f.fs.setFile(f.path, f)
 }
 
 func (f *fileData) info() hackpadfs.FileInfo {

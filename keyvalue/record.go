@@ -116,6 +116,7 @@ type runOnceFileRecord struct {
 
 	data     blob.Blob
 	dataErr  error
+	dataDone int64
 	dataOnce sync.Once
 
 	dirNames     []string
@@ -138,6 +139,7 @@ type runOnceFileRecord struct {
 func (r *runOnceFileRecord) Data() (blob.Blob, error) {
 	r.dataOnce.Do(func() {
 		r.data, r.dataErr = r.record.Data()
+		atomic.StoreInt64(&r.dataDone, 1)
 	})
 	return r.data, r.dataErr
 }
@@ -153,11 +155,10 @@ func (r *runOnceFileRecord) Size() int64 {
 	r.sizeOnce.Do(func() {
 		atomic.StoreInt64(&r.size, r.record.Size())
 	})
+	if atomic.LoadInt64(&r.dataDone) > 0 {
+		return int64(r.data.Len())
+	}
 	return r.size
-}
-
-func (r *runOnceFileRecord) setSize(size int64) {
-	atomic.StoreInt64(&r.size, size)
 }
 
 func (r *runOnceFileRecord) Mode() hackpadfs.FileMode {
