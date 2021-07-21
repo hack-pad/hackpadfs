@@ -181,6 +181,7 @@ func (fs *FS) Rename(oldname, newname string) error {
 	defer newFile.Close()
 	_, err = io.Copy(newFileWriter, oldFile)
 	if err != nil {
+		_ = hackpadfs.Remove(newMount, newSubPath)
 		return err
 	}
 	return hackpadfs.Remove(oldMount, oldSubPath)
