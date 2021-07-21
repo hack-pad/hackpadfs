@@ -153,7 +153,7 @@ func (r *runOnceFileRecord) ReadDirNames() ([]string, error) {
 
 func (r *runOnceFileRecord) Size() int64 {
 	r.sizeOnce.Do(func() {
-		atomic.StoreInt64(&r.size, r.record.Size())
+		r.size = r.record.Size()
 	})
 	if atomic.LoadInt64(&r.dataDone) > 0 {
 		return int64(r.data.Len())
