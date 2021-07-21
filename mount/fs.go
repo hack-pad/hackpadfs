@@ -1,6 +1,7 @@
 package mount
 
 import (
+	"io"
 	"path"
 	"strings"
 	"sync"
@@ -9,7 +10,11 @@ import (
 )
 
 var (
-	_ hackpadfs.MountFS = &FS{}
+	_ interface {
+		hackpadfs.FS
+		hackpadfs.MountFS
+		hackpadfs.RenameFS
+	} = &FS{}
 )
 
 // FS is mesh of several file systems mounted at different paths.
@@ -76,20 +81,14 @@ func (fs *FS) addMount(p string, mountFS hackpadfs.FS) error {
 
 // Mount implements hackpadfs.MountFS
 func (fs *FS) Mount(path string) (mount hackpadfs.FS, subPath string) {
-	mount, mountPath := fs.mountPoint(path)
+	mount, mountPath, subPath := fs.mountPoint(path)
 	if mountPath == "." {
 		return mount, path
-	}
-	subPath = path
-	subPath = strings.TrimPrefix(subPath, mountPath)
-	subPath = strings.TrimPrefix(subPath, "/")
-	if subPath == "" {
-		subPath = "."
 	}
 	return mount, subPath
 }
 
-func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
+func (fs *FS) mountPoint(path string) (_ hackpadfs.FS, mountPoint, subPath string) {
 	var resultPath string
 	resultFS := fs.rootFS
 	fs.mounts.Range(func(key, value interface{}) bool {
@@ -108,10 +107,17 @@ func (fs *FS) mountPoint(path string) (hackpadfs.FS, string) {
 			return true
 		}
 	})
+	subPath = path
+	subPath = strings.TrimPrefix(subPath, resultPath)
+	subPath = strings.TrimPrefix(subPath, "/")
+
 	if resultPath == "" {
-		return resultFS, "."
+		resultPath = "."
 	}
-	return resultFS, resultPath
+	if subPath == "" {
+		subPath = "."
+	}
+	return resultFS, resultPath, subPath
 }
 
 // Open implements hackpadfs.FS
@@ -134,4 +140,48 @@ func (fs *FS) MountPoints() []Point {
 		return true
 	})
 	return points
+}
+
+// Rename implements hackpadfs.RenameFS
+func (fs *FS) Rename(oldname, newname string) error {
+	oldMount, oldPoint, oldSubPath := fs.mountPoint(oldname)
+	newMount, newPoint, newSubPath := fs.mountPoint(newname)
+	oldInfo, err := hackpadfs.Stat(oldMount, oldSubPath)
+	if err != nil {
+		return &hackpadfs.LinkError{Op: "rename", Old: oldname, New: newname, Err: err}
+	}
+	if oldname == newname {
+		if !oldInfo.IsDir() {
+			return nil
+		}
+		return &hackpadfs.LinkError{Op: "rename", Old: oldname, New: newname, Err: hackpadfs.ErrExist}
+	}
+
+	if oldPoint == newPoint {
+		return hackpadfs.Rename(oldMount, oldSubPath, newSubPath)
+	}
+	if oldInfo.IsDir() {
+		// TODO support renaming directories
+		return &hackpadfs.LinkError{Op: "rename", Old: oldname, New: newname, Err: hackpadfs.ErrNotImplemented}
+	}
+
+	oldFile, err := oldMount.Open(oldSubPath)
+	if err != nil {
+		return err
+	}
+	defer oldFile.Close()
+	newFile, err := hackpadfs.OpenFile(newMount, newSubPath, hackpadfs.FlagWriteOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, oldInfo.Mode())
+	if err != nil {
+		return err
+	}
+	newFileWriter, ok := newFile.(io.Writer)
+	if !ok {
+		return &hackpadfs.LinkError{Op: "rename", Old: oldname, New: newname, Err: hackpadfs.ErrPermission}
+	}
+	defer newFile.Close()
+	_, err = io.Copy(newFileWriter, oldFile)
+	if err != nil {
+		return err
+	}
+	return hackpadfs.Remove(oldMount, oldSubPath)
 }
