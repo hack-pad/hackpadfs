@@ -72,7 +72,7 @@ func (b *Bytes) Set(dest Blob, srcStart int64) (n int, err error) {
 	if srcStart < 0 {
 		return 0, errors.New("negative offset")
 	}
-	if srcStart >= int64(len(b.bytes)) {
+	if srcStart >= int64(len(b.bytes)) && srcStart == 0 && dest.Len() > 0 {
 		return 0, fmt.Errorf("Offset out of bounds: %d", srcStart)
 	}
 	n = copy(b.bytes[srcStart:], dest.Bytes())
