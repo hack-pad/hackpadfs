@@ -329,8 +329,11 @@ func testFileWrite(tb testing.TB, setup TestSetup, writer func(hackpadfs.File, [
 			assert.NoError(tb, f.Close())
 		}
 
-		fs := commit()
-		f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		f, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
 		assert.NoError(tb, err)
 		n, err := writer(f, []byte(fileContents))
 		assert.Equal(tb, len(fileContents), n)
@@ -353,8 +356,11 @@ func testFileWrite(tb testing.TB, setup TestSetup, writer func(hackpadfs.File, [
 			assert.NoError(tb, f.Close())
 		}
 
-		fs := commit()
-		f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite|hackpadfs.FlagTruncate, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		f, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite|hackpadfs.FlagTruncate, 0)
 		assert.NoError(tb, err)
 		n, err := writer(f, []byte(fileContents))
 		assert.Equal(tb, len(fileContents), n)
@@ -384,8 +390,11 @@ func TestFileWriteAt(tb testing.TB, setup TestSetup) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs := commit()
-		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
 		assert.NoError(tb, err)
 		f := writeAtFile(tb, file)
 		n, err := f.WriteAt([]byte("hello"), -1)
@@ -408,8 +417,11 @@ func TestFileWriteAt(tb testing.TB, setup TestSetup) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs := commit()
-		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
 		assert.NoError(tb, err)
 		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
@@ -433,8 +445,11 @@ func TestFileWriteAt(tb testing.TB, setup TestSetup) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs := commit()
-		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
 		assert.NoError(tb, err)
 		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
@@ -462,8 +477,11 @@ func TestFileWriteAt(tb testing.TB, setup TestSetup) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs := commit()
-		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		fs, ok := commit().(hackpadfs.OpenFileFS)
+		if !ok {
+			tb.Skip("FS is not an OpenFileFS")
+		}
+		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
 		assert.NoError(tb, err)
 		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
@@ -688,7 +706,10 @@ func TestFileTruncate(tb testing.TB, setup TestSetup) {
 				assert.NoError(tb, err)
 			}
 
-			fs := commit()
+			fs, ok := commit().(hackpadfs.OpenFileFS)
+			if !ok {
+				tb.Skip("FS is not an OpenFileFS")
+			}
 			file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
 			assert.NoError(tb, err)
 			f, ok := file.(hackpadfs.TruncaterFile)
