@@ -174,7 +174,7 @@ func (t *transaction) Commit(ctx context.Context) ([]keyvalue.OpResult, error) {
 		fn()
 	}
 	t.resultsMu.Lock()
-	var results []keyvalue.OpResult
+	results := make([]keyvalue.OpResult, 0, len(t.results))
 	for _, result := range t.results {
 		results = append(results, result)
 	}
