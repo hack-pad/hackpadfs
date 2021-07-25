@@ -31,7 +31,7 @@ type fileRecord struct {
 }
 
 func (f fileRecord) Data() (blob.Blob, error) {
-	return blob.NewBytes(f.data.Bytes()).Slice(0, int64(f.data.Len()))
+	return f.data, nil
 }
 
 func (f fileRecord) Size() int64              { return int64(f.data.Len()) }
