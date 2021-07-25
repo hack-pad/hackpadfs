@@ -82,11 +82,7 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 
 func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.FileInfo) error {
 	parentName := path.Dir(name)
-	parentInfo, err := fs.Stat(parentName)
-	if err != nil {
-		return err
-	}
-	if err := fs.mkdir(parentName, parentInfo); err != nil {
+	if err := hackpadfs.MkdirAll(fs.cacheFS, parentName, 0700); err != nil {
 		return &hackpadfs.PathError{Op: "open", Path: parentName, Err: err}
 	}
 	fs.mu.Lock()
@@ -104,33 +100,6 @@ func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.Fil
 	buf := make([]byte, 512)
 	_, err = io.CopyBuffer(destFileWriter, f, buf)
 	return err
-}
-
-func (fs *ReadOnlyFS) mkdir(name string, info hackpadfs.FileInfo) error {
-	if name == "." {
-		return nil
-	}
-	if !info.IsDir() {
-		return hackpadfs.ErrNotDir
-	}
-	err := hackpadfs.Mkdir(fs.cacheFS, name, info.Mode())
-	switch {
-	case errors.Is(err, hackpadfs.ErrNotExist):
-		parentName := path.Dir(name)
-		parentInfo, err := fs.Stat(parentName)
-		if err != nil {
-			return err
-		}
-		err = fs.mkdir(parentName, parentInfo)
-		if err != nil {
-			return err
-		}
-		return hackpadfs.Mkdir(fs.cacheFS, name, info.Mode())
-	case errors.Is(err, hackpadfs.ErrExist):
-		return nil
-	default:
-		return err
-	}
 }
 
 func (fs *ReadOnlyFS) Stat(name string) (hackpadfs.FileInfo, error) {
