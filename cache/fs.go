@@ -24,12 +24,12 @@ type ReadOnlyFS struct {
 }
 
 type ReadOnlyOptions struct {
-	RetainData func(name string) bool
+	RetainData func(name string, info hackpadfs.FileInfo) bool
 }
 
 func NewReadOnlyFS(source hackpadfs.FS, cache writableFS, options ReadOnlyOptions) (*ReadOnlyFS, error) {
 	if options.RetainData == nil {
-		options.RetainData = func(string) bool { return true }
+		options.RetainData = func(string, hackpadfs.FileInfo) bool { return true }
 	}
 	return &ReadOnlyFS{
 		sourceFS: source,
@@ -63,7 +63,7 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !fs.options.RetainData(name) {
+	if !fs.options.RetainData(name, info) {
 		return f, nil
 	}
 
