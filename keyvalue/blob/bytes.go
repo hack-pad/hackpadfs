@@ -23,13 +23,17 @@ var (
 type Bytes struct {
 	bytes  []byte
 	length int64
-	mu     sync.Mutex
+	mu     *sync.Mutex // mutex can be shared when the byte slice is shared
 }
 
 // NewBytes returns a Blob that wraps the given byte slice.
 // Mutations to this Blob are reflected in the original slice.
 func NewBytes(buf []byte) *Bytes {
-	return &Bytes{bytes: buf, length: int64(len(buf))}
+	return &Bytes{
+		bytes:  buf,
+		length: int64(len(buf)),
+		mu:     new(sync.Mutex),
+	}
 }
 
 // NewBytesLength returns a new Bytes with the given length of zero-byte data.
@@ -39,7 +43,12 @@ func NewBytesLength(length int) *Bytes {
 
 // Bytes implements Blob.
 func (b *Bytes) Bytes() []byte {
-	return b.bytes
+	// always return a copy of the bytes, to avoid concurrent modification
+	newB, err := b.Slice(0, int64(b.Len()))
+	if err != nil {
+		panic(err)
+	}
+	return newB.(*Bytes).bytes
 }
 
 // Len implements Blob.
@@ -55,7 +64,9 @@ func (b *Bytes) View(start, end int64) (Blob, error) {
 	if end < 0 || end > int64(b.Len()) {
 		return nil, fmt.Errorf("End index out of bounds: %d", end)
 	}
-	return NewBytes(b.bytes[start:end]), nil
+	newB := NewBytes(b.bytes[start:end])
+	newB.mu = b.mu
+	return newB, nil
 }
 
 // Slice implements Blob.
