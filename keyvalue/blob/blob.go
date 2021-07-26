@@ -22,11 +22,11 @@ type SliceBlob interface {
 	Slice(start, end int64) (Blob, error)
 }
 
-// SetBlob is a Blob that can copy 'dest' into itself starting at the given offset into this Blob.
-// Use View() on 'dest' to control the maximum that is copied into this Blob.
+// SetBlob is a Blob that can copy 'src' into itself starting at the given offset into this Blob.
+// Use View() on 'src' to control the maximum that is copied into this Blob.
 type SetBlob interface {
 	Blob
-	Set(dest Blob, offset int64) (n int, err error)
+	Set(src Blob, offset int64) (n int, err error)
 }
 
 // GrowBlob is a Blob that can increase it's size by allocating offset bytes at the end.

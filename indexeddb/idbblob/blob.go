@@ -154,25 +154,25 @@ func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 }
 
 // Set implements blob.SetBlob
-func (b *Blob) Set(dest blob.Blob, srcStart int64) (n int, err error) {
-	if srcStart < 0 {
+func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
+	if destStart < 0 {
 		return 0, errors.New("negative offset")
 	}
-	if srcStart >= int64(b.Len()) && srcStart == 0 && dest.Len() > 0 {
-		return 0, fmt.Errorf("Offset out of bounds: %d", srcStart)
+	if destStart >= int64(b.Len()) && destStart == 0 && src.Len() > 0 {
+		return 0, fmt.Errorf("Offset out of bounds: %d", destStart)
 	}
 
 	err = catchErr(func() error {
-		b.JSValue().Call("set", FromBlob(dest), srcStart)
+		b.JSValue().Call("set", FromBlob(src), destStart)
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
-	n = dest.Len()
+	n = src.Len()
 
 	if buf := b.currentBytes(); buf != nil {
-		_, err := buf.Set(dest, srcStart)
+		_, err := buf.Set(src, destStart)
 		if err != nil {
 			panic(err)
 		}
