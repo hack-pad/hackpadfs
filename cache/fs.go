@@ -14,6 +14,7 @@ type writableFS interface {
 	hackpadfs.MkdirFS
 }
 
+// ReadOnlyFS is a read-only cache for an FS. Source FS data must not change. Data is assumed unchanged to increase performance.
 type ReadOnlyFS struct {
 	sourceFS  hackpadfs.FS
 	cacheFS   writableFS
@@ -23,10 +24,12 @@ type ReadOnlyFS struct {
 	options ReadOnlyOptions
 }
 
+// ReadOnlyOptions contain options for creating a ReadOnlyFS
 type ReadOnlyOptions struct {
 	RetainData func(name string, info hackpadfs.FileInfo) bool
 }
 
+// NewReadOnlyFS creates a new ReadOnlyFS with the given 'source' of data, a writable 'cache' FS, and any additional options.
 func NewReadOnlyFS(source hackpadfs.FS, cache writableFS, options ReadOnlyOptions) (*ReadOnlyFS, error) {
 	if options.RetainData == nil {
 		options.RetainData = func(string, hackpadfs.FileInfo) bool { return true }
@@ -38,6 +41,7 @@ func NewReadOnlyFS(source hackpadfs.FS, cache writableFS, options ReadOnlyOption
 	}, nil
 }
 
+// Open implements hackpadfs.FS
 func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 	// if source file is a dir or encounters an error, return early
 	info, err := fs.Stat(name)
@@ -72,7 +76,7 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 		f.Close()
 		return nil, err
 	}
-	if _, err := hackpadfs.SeekFile(f, 0, io.SeekStart); err != nil {
+	if _, seekErr := hackpadfs.SeekFile(f, 0, io.SeekStart); seekErr != nil {
 		// attempt to seek to first byte. if unsuccessful, re-open file from the cache
 		f.Close()
 		f, err = fs.cacheFS.Open(name)
@@ -102,6 +106,7 @@ func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.Fil
 	return err
 }
 
+// Stat implements hackpadfs.StatFS
 func (fs *ReadOnlyFS) Stat(name string) (hackpadfs.FileInfo, error) {
 	if infoV, loaded := fs.cacheInfo.Load(name); loaded {
 		return infoV.(hackpadfs.FileInfo), nil
