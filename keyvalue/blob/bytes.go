@@ -74,15 +74,15 @@ func (b *Bytes) Slice(start, end int64) (Blob, error) {
 }
 
 // Set implements Blob.
-func (b *Bytes) Set(dest Blob, srcStart int64) (n int, err error) {
-	if srcStart < 0 {
+func (b *Bytes) Set(src Blob, destStart int64) (n int, err error) {
+	if destStart < 0 {
 		return 0, errors.New("negative offset")
 	}
-	if srcStart >= int64(b.Len()) && srcStart == 0 && dest.Len() > 0 {
-		return 0, fmt.Errorf("Offset out of bounds: %d", srcStart)
+	if destStart >= int64(b.Len()) && destStart == 0 && src.Len() > 0 {
+		return 0, fmt.Errorf("Offset out of bounds: %d", destStart)
 	}
 	b.mu.Lock()
-	n = copy(b.bytes[srcStart:], dest.Bytes())
+	n = copy(b.bytes[destStart:], src.Bytes())
 	b.mu.Unlock()
 	return n, nil
 }
