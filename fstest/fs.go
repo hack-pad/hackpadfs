@@ -120,6 +120,9 @@ func TestCreate(tb testing.TB, setup TestSetup) {
 }
 
 func testCreate(tb testing.TB, setup TestSetup, createFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
+	_, commit := setup.FS(tb)
+	_, _ = createFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
+
 	tbRun(tb, "new file", func(tb testing.TB) {
 		_, commit := setup.FS(tb)
 		fs := commit()
@@ -386,6 +389,9 @@ func TestOpen(tb testing.TB, setup TestSetup) {
 }
 
 func testOpen(tb testing.TB, setup TestSetup, openFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
+	_, commit := setup.FS(tb)
+	_, _ = openFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
+
 	tbRun(tb, "invalid path", func(tb testing.TB) {
 		_, commit := setup.FS(tb)
 		fs := commit()
