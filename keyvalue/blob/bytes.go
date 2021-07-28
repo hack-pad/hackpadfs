@@ -64,6 +64,8 @@ func (b *Bytes) View(start, end int64) (Blob, error) {
 	if end < 0 || end > int64(b.Len()) {
 		return nil, fmt.Errorf("End index out of bounds: %d", end)
 	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	newB := NewBytes(b.bytes[start:end])
 	newB.mu = b.mu
 	return newB, nil
