@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/hack-pad/hackpadfs"
+	"github.com/hack-pad/hackpadfs/internal/pathlock"
 )
 
 type writableFS interface {
@@ -20,8 +21,8 @@ type ReadOnlyFS struct {
 	cacheFS   writableFS
 	cacheInfo sync.Map
 
-	mu      sync.Mutex
-	options ReadOnlyOptions
+	pathlock pathlock.Lock
+	options  ReadOnlyOptions
 }
 
 // ReadOnlyOptions contain options for creating a ReadOnlyFS
@@ -52,6 +53,8 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 		return nil, err
 	}
 
+	fs.pathlock.Lock(name)
+	defer fs.pathlock.Unlock(name)
 	{
 		// if file is in cache, return it. continue otherwise
 		f, err := fs.cacheFS.Open(name)
@@ -89,8 +92,6 @@ func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.Fil
 	if err := hackpadfs.MkdirAll(fs.cacheFS, parentName, 0700); err != nil {
 		return &hackpadfs.PathError{Op: "open", Path: parentName, Err: err}
 	}
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
 	destFile, err := fs.cacheFS.OpenFile(name, hackpadfs.FlagWriteOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, info.Mode())
 	if err != nil {
 		return err
