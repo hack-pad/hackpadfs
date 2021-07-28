@@ -21,7 +21,7 @@ type ReadOnlyFS struct {
 	cacheFS   writableFS
 	cacheInfo sync.Map
 
-	pathlock pathlock.Lock
+	pathlock pathlock.Mutex
 	options  ReadOnlyOptions
 }
 
