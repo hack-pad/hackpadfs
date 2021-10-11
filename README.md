@@ -69,16 +69,14 @@ import (
     "github.com/hack-pad/hackpadfs/os"
 )
 
-func main() {
-    filePath := "tmp/hello.txt"
-    fs, _ := os.NewFS()
-    file, _ := fs.Open(filePath)
-    defer file.Close()
+filePath := "tmp/hello.txt"
+fs, _ := os.NewFS()
+file, _ := fs.Open(filePath)
+defer file.Close()
 
-    buffer := make([]byte, 1024)
-    n, _ := file.Read(buffer)
-    fmt.Println("Contents of hello.txt:", string(buffer[:n]))
-}
+buffer := make([]byte, 1024)
+n, _ := file.Read(buffer)
+fmt.Println("Contents of hello.txt:", string(buffer[:n]))
 ```
 
 #### Relative file paths
