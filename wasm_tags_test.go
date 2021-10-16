@@ -1,3 +1,4 @@
+//go:build !wasm
 // +build !wasm
 
 package hackpadfs
@@ -10,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hack-pad/hackpadfs/internal/assert"
 )
 
 var (
@@ -37,6 +40,7 @@ func shouldBeWasm(path string) (isWasm, skip bool) {
 }
 
 func TestWasmTags(t *testing.T) {
+	t.Parallel()
 	walkErr := filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
@@ -50,7 +54,7 @@ func TestWasmTags(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { assert.NoError(t, f.Close()) }()
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())

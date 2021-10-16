@@ -1,3 +1,4 @@
+//go:build wasm
 // +build wasm
 
 package indexeddb
@@ -91,7 +92,7 @@ func TestClear(t *testing.T) {
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if assert.NoError(t, err) {

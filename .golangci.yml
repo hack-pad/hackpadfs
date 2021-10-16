@@ -11,10 +11,6 @@ linters:
     - paralleltest
     - revive
 
-run:
-  build-tags:
-    - js,wasm
-
 issues:
   exclude:
     # Disable scopelint errors on table driven tests
@@ -24,6 +20,8 @@ issues:
     - comment on exported function Test\S* should be of the form
   include:
     # Re-enable default excluded rules
+    - EXC0001
+    - EXC0002
     - EXC0012
     - EXC0013
     - EXC0014

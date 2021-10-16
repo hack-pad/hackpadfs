@@ -1,3 +1,4 @@
+//go:build !wasm
 // +build !wasm
 
 package hackpadfs
@@ -13,6 +14,7 @@ import (
 )
 
 func TestNoImportOS(t *testing.T) {
+	t.Parallel()
 	// Ensure we don't import the standard library "os" package unnecessarily in the main interface package.
 	// This helps reduce footprint, since os is not required unless using the hackpadfs/os implementation.
 	cmd := exec.Command("go", "list", "-json", ".")

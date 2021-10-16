@@ -246,7 +246,7 @@ func Stat(fs FS, name string) (FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return file.Stat()
 }
 
@@ -286,7 +286,7 @@ func Chmod(fs FS, name string, mode FileMode) error {
 	if err != nil {
 		return &PathError{Op: "chmod", Path: name, Err: err}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return ChmodFile(file, mode)
 }
 
@@ -303,7 +303,7 @@ func Chown(fs FS, name string, uid, gid int) error {
 	if err != nil {
 		return &PathError{Op: "chown", Path: name, Err: err}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return ChownFile(file, uid, gid)
 }
 
@@ -320,7 +320,7 @@ func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
 	if err != nil {
 		return &PathError{Op: "chtimes", Path: name, Err: err}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return ChtimesFile(file, atime, mtime)
 }
 

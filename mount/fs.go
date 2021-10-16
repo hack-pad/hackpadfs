@@ -61,7 +61,7 @@ func (fs *FS) addMount(p string, mountFS hackpadfs.FS) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (fs *FS) Rename(oldname, newname string) error {
 	if err != nil {
 		return err
 	}
-	defer oldFile.Close()
+	defer func() { _ = oldFile.Close() }()
 	newFile, err := hackpadfs.OpenFile(newMount, newSubPath, hackpadfs.FlagWriteOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, oldInfo.Mode())
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func (fs *FS) Rename(oldname, newname string) error {
 	if !ok {
 		return &hackpadfs.LinkError{Op: "rename", Old: oldname, New: newname, Err: hackpadfs.ErrPermission}
 	}
-	defer newFile.Close()
+	defer func() { _ = newFile.Close() }()
 	_, err = io.Copy(newFileWriter, oldFile)
 	if err != nil {
 		_ = hackpadfs.Remove(newMount, newSubPath)
