@@ -76,12 +76,12 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 
 	err = fs.copyFile(name, f, info)
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, err
 	}
 	if _, seekErr := hackpadfs.SeekFile(f, 0, io.SeekStart); seekErr != nil {
 		// attempt to seek to first byte. if unsuccessful, re-open file from the cache
-		f.Close()
+		_ = f.Close()
 		f, err = fs.cacheFS.Open(name)
 	}
 	return f, err
@@ -96,7 +96,7 @@ func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.Fil
 	if err != nil {
 		return err
 	}
-	defer destFile.Close()
+	defer func() { _ = destFile.Close() }()
 
 	destFileWriter, ok := destFile.(io.Writer)
 	if !ok {
@@ -116,7 +116,7 @@ func (fs *ReadOnlyFS) Stat(name string) (hackpadfs.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		return nil, err

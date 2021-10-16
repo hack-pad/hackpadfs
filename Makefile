@@ -1,5 +1,5 @@
 BROWSERTEST_VERSION = v0.3.5
-LINT_VERSION = 1.41.1
+LINT_VERSION = 1.42.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
 SHELL = bash
 
@@ -14,6 +14,7 @@ lint-deps:
 
 .PHONY: lint
 lint: lint-deps
+	"${GO_BIN}/golangci-lint" run
 	GOOS=js GOARCH=wasm "${GO_BIN}/golangci-lint" run
 
 .PHONY: test-deps
