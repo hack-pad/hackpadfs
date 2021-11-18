@@ -1088,7 +1088,7 @@ func TestChtimes(tb testing.TB, setup TestSetup) {
 			Name: "foo",
 			Mode: 0666,
 		}, asQuickInfo(info)) {
-			assert.Equal(tb, modifyTime.Format(time.RFC3339), info.ModTime().Format(time.RFC3339))
+			assert.Equal(tb, modifyTime.Format(time.RFC3339), info.ModTime().Local().Format(time.RFC3339))
 		}
 	})
 }
