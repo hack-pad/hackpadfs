@@ -173,12 +173,12 @@ func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 }
 
 func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
-	key := s.fileToObjectKey(name, record.Mode().IsDir())
-	fmt.Println("-- Setting:", name, key, record)
 	if record == nil {
-		return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
+		return s.delete(ctx, name)
 	}
 
+	key := s.fileToObjectKey(name, record.Mode().IsDir())
+	fmt.Println("-- Setting:", name, key, record)
 	b, err := record.Data()
 	if err != nil {
 		return err
@@ -193,4 +193,25 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 	})
 	fmt.Printf("Upload error: %#v\n", err)
 	return err
+}
+
+func (s *store) delete(ctx context.Context, name string) error {
+	record, err := s.Get(ctx, name)
+	if err != nil {
+		return err
+	}
+	isDir := record.Mode().IsDir()
+	if isDir {
+		dirNames, err := record.ReadDirNames()
+		if err != nil {
+			return err
+		}
+		if len(dirNames) > 0 {
+			return hackpadfs.ErrNotEmpty
+		}
+	}
+
+	key := s.fileToObjectKey(name, isDir)
+	fmt.Println("-- Deleting:", name, key)
+	return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
 }
