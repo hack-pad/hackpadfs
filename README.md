@@ -14,6 +14,10 @@ Want to get started? Check out the [guides](#getting-started) below.
 * [`mount.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/mount) - Composable file system. Capable of mounting file systems on top of each other.
 * [`keyvalue.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/keyvalue) - Generic key-value file system. Excellent for quickly writing your own file system. `mem.FS` and `indexeddb.FS` are built upon it.
 
+Looking for custom file system inspiration? Examples include:
+
+* [`s3.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/examples/s3)
+
 Each of these file systems runs through the rigorous [`hackpadfs/fstest` suite](fstest/fstest.go) to ensure both correctness and compliance with the standard library's `os` package behavior. If you're implementing your own FS, we recommend using `fstest` in your own tests as well.
 
 ### Interfaces
