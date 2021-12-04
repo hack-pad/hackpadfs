@@ -95,8 +95,6 @@ func (s *store) resolveFSErr(err error) error {
 }
 
 func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, error) {
-	fmt.Println("-- Getting:", name, "; bucket =", s.options.BucketName)
-	defer fmt.Println()
 	key := s.fileToObjectKey(name, true)
 	info, err := s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
 	err = s.resolveFSErr(err)
@@ -108,7 +106,6 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("--   Get: key =", key)
 
 	modTime := info.LastModified.UTC()
 	if modTimeStr, ok := info.UserMetadata[modTimeMetadataKey]; ok {
@@ -127,7 +124,6 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 		}
 		mode = hackpadfs.FileMode(modeInt)
 	} else {
-		fmt.Println("--   Get: key =", key, "; missing mode metadata:", fmt.Sprintf("%#v", info))
 		return nil, hackpadfs.ErrInvalid
 	}
 
@@ -138,7 +134,6 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 	} else {
 		getData = s.getDataFunc(key)
 	}
-	fmt.Println("--   Get: key =", key, "; isDir =", mode.IsDir())
 	return keyvalue.NewBaseFileRecord(info.Size, modTime, mode, nil, getData, getDirNames), nil
 }
 
@@ -154,7 +149,6 @@ func (s *store) getDirNamesFunc(key string) func() ([]string, error) {
 				return nil, s.resolveFSErr(info.Err)
 			}
 			if info.Key != key {
-				fmt.Println("-- Listing ", key, " found:", info.Key)
 				filePath := s.objectKeyToFile(info.Key)
 				names = append(names, path.Base(filePath))
 			}
@@ -194,16 +188,10 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 			return err
 		}
 		key := s.fileToObjectKey(name, getRecord.Mode().IsDir())
-		fmt.Println("-- Deleting:", name, key)
 		return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
 	}
 
 	key := s.fileToObjectKey(name, record.Mode().IsDir())
-	fmt.Println("-- Setting:", name, "; key =", key, "; isDir =", record.Mode().IsDir())
-	defer func() {
-		fmt.Println("--   Set: key =", key, "; err =", e)
-		fmt.Println()
-	}()
 
 	if !record.Mode().IsDir() {
 		existingRecord, err := s.Get(ctx, name)
@@ -227,7 +215,6 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 			modTimeMetadataKey: record.ModTime().Format(modTimeFormat),
 		},
 	}
-	fmt.Println("--   Set: key =", key, "; header =", opts.Header())
 	_, err = s.client.PutObject(ctx, s.options.BucketName, key, bytes.NewReader(data), int64(length), opts)
 	return err
 }

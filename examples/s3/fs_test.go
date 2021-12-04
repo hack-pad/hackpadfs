@@ -32,7 +32,6 @@ func init() {
 		panic(err)
 	}
 	go func() {
-		fmt.Println("Using minio path:", path)
 		defer os.RemoveAll(path)
 		minioServer.Main([]string{
 			"minio", "server", path,
