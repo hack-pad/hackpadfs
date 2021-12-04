@@ -80,9 +80,6 @@ func (s *store) objectKeyToFile(p string) string {
 }
 
 func (s *store) wrapS3Err(err error) error {
-	if err == nil {
-		return nil
-	}
 	if minio.ToErrorResponse(err).Code == "NoSuchKey" {
 		return hackpadfs.ErrNotExist
 	}
