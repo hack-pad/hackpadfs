@@ -26,13 +26,13 @@ var (
 
 const (
 	// for some reason these keys must be Header-cased
-	modeMetadataKey = "Mode"
-	modTimeKey      = "Modtime"
-	modTimeFormat   = time.RFC3339Nano
+	modeMetadataKey    = "Mode"
+	modTimeMetadataKey = "Modtime"
+	modTimeFormat      = time.RFC3339Nano
 
-	rootPath   = "files"
-	filePrefix = "file-"
-	dirRoot    = "directory"
+	rootPath    = "files"
+	filePrefix  = "file-"
+	dirMetaName = "dir-meta"
 )
 
 type store struct {
@@ -55,21 +55,35 @@ func newStore(options Options) (*store, error) {
 }
 
 func (s *store) fileToObjectKey(p string, isDir bool) string {
+	dir, file := path.Split(p)
 	if isDir {
-		return path.Join(rootPath, p, dirRoot)
+		return path.Join(rootPath, dir, file, dirMetaName)
 	} else {
-		return path.Join(rootPath, filePrefix+p)
+		return path.Join(rootPath, dir, filePrefix+file)
 	}
 }
 
-func (s *store) objectKeyToFile(p string) (filePath string, isDir bool) {
-	p = strings.TrimPrefix(p, rootPath+"/")
-	if path.Base(p) == dirRoot {
-		return path.Dir(p), true
-	} else {
-		dir, base := path.Split(p)
-		fileName := strings.TrimPrefix(base, filePrefix)
-		return path.Join(dir, fileName), false
+func (s *store) objectKeyToFile(p string) string {
+	switch {
+	case p == rootPath:
+		p = "."
+	case strings.HasPrefix(p, rootPath+"/"):
+		p = strings.TrimPrefix(p, rootPath+"/")
+	default:
+		panic("Unrecognized object key: " + p)
+	}
+	if strings.HasSuffix(p, "/") {
+		p = path.Join(p, dirMetaName)
+	}
+	dir, file := path.Split(path.Clean(p))
+	dir = path.Clean(dir)
+	switch {
+	case strings.HasPrefix(file, filePrefix):
+		return path.Join(dir, strings.TrimPrefix(file, filePrefix))
+	case file == dirMetaName:
+		return dir
+	default:
+		panic(fmt.Sprintf("Unrecognized file name %q for full key %q ", file, p))
 	}
 }
 
@@ -80,34 +94,24 @@ func (s *store) resolveFSErr(err error) error {
 	return err
 }
 
-func (s *store) openObject(ctx context.Context, key string) (*minio.Object, minio.ObjectInfo, error) {
-	obj, err := s.client.GetObject(ctx, s.options.BucketName, key, minio.GetObjectOptions{})
-	if err != nil {
-		return nil, minio.ObjectInfo{}, err
-	}
-	info, err := obj.Stat()
-	if err != nil {
-		obj.Close()
-		return nil, minio.ObjectInfo{}, s.resolveFSErr(err)
-	}
-	return obj, info, nil
-}
-
 func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, error) {
-	key := s.fileToObjectKey(name, false)
-	fmt.Println("-- Getting:", name, key)
-	obj, info, err := s.openObject(ctx, key)
+	fmt.Println("-- Getting:", name, "; bucket =", s.options.BucketName)
+	defer fmt.Println()
+	key := s.fileToObjectKey(name, true)
+	info, err := s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
+	err = s.resolveFSErr(err)
 	if errors.Is(err, hackpadfs.ErrNotExist) {
-		key = s.fileToObjectKey(name, true)
-		obj, info, err = s.openObject(ctx, key)
+		key = s.fileToObjectKey(name, false)
+		info, err = s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
+		err = s.resolveFSErr(err)
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer obj.Close()
+	fmt.Println("--   Get: key =", key)
 
 	modTime := info.LastModified.UTC()
-	if modTimeStr, ok := info.UserMetadata[modTimeKey]; ok {
+	if modTimeStr, ok := info.UserMetadata[modTimeMetadataKey]; ok {
 		var err error
 		modTime, err = time.Parse(modTimeFormat, modTimeStr)
 		if err != nil {
@@ -115,13 +119,16 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 		}
 	}
 
-	mode := hackpadfs.FileMode(0777)
+	var mode hackpadfs.FileMode
 	if modeStr, ok := info.UserMetadata[modeMetadataKey]; ok {
 		modeInt, err := strconv.ParseUint(modeStr, 8, 64)
 		if err != nil {
 			return nil, err
 		}
 		mode = hackpadfs.FileMode(modeInt)
+	} else {
+		fmt.Println("--   Get: key =", key, "; missing mode metadata:", fmt.Sprintf("%#v", info))
+		return nil, hackpadfs.ErrInvalid
 	}
 
 	var getData func() (blob.Blob, error)
@@ -131,23 +138,24 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 	} else {
 		getData = s.getDataFunc(key)
 	}
-
+	fmt.Println("--   Get: key =", key, "; isDir =", mode.IsDir())
 	return keyvalue.NewBaseFileRecord(info.Size, modTime, mode, nil, getData, getDirNames), nil
 }
 
 func (s *store) getDirNamesFunc(key string) func() ([]string, error) {
+	prefix, _ := path.Split(path.Clean(key))
 	return func() ([]string, error) {
 		infoChan := s.client.ListObjects(context.Background(), s.options.BucketName, minio.ListObjectsOptions{
-			Prefix: key + "/",
+			Prefix: prefix,
 		})
 		var names []string
 		for info := range infoChan {
 			if info.Err != nil {
 				return nil, s.resolveFSErr(info.Err)
 			}
-			fmt.Println("-- Listing ", key, " found:", info.Key)
-			filePath, isDir := s.objectKeyToFile(info.Key)
-			if !isDir {
+			if info.Key != key {
+				fmt.Println("-- Listing ", key, " found:", info.Key)
+				filePath := s.objectKeyToFile(info.Key)
 				names = append(names, path.Base(filePath))
 			}
 		}
@@ -157,11 +165,15 @@ func (s *store) getDirNamesFunc(key string) func() ([]string, error) {
 
 func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 	return func() (blob.Blob, error) {
-		obj, info, err := s.openObject(context.Background(), key)
+		obj, err := s.client.GetObject(context.Background(), s.options.BucketName, key, minio.GetObjectOptions{})
 		if err != nil {
 			return nil, err
 		}
 		defer obj.Close()
+		info, err := obj.Stat()
+		if err != nil {
+			return nil, err
+		}
 
 		buf := make([]byte, info.Size)
 		_, err = obj.ReadAt(buf, 0)
@@ -172,46 +184,50 @@ func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 	}
 }
 
-func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
+func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) (e error) {
 	if record == nil {
-		return s.delete(ctx, name)
+		getRecord, err := s.Get(ctx, name)
+		if errors.Is(err, hackpadfs.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		key := s.fileToObjectKey(name, getRecord.Mode().IsDir())
+		fmt.Println("-- Deleting:", name, key)
+		return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
 	}
 
 	key := s.fileToObjectKey(name, record.Mode().IsDir())
-	fmt.Println("-- Setting:", name, key, record)
+	fmt.Println("-- Setting:", name, "; key =", key, "; isDir =", record.Mode().IsDir())
+	defer func() {
+		fmt.Println("--   Set: key =", key, "; err =", e)
+		fmt.Println()
+	}()
+
+	if !record.Mode().IsDir() {
+		existingRecord, err := s.Get(ctx, name)
+		switch {
+		case errors.Is(err, hackpadfs.ErrNotExist):
+		case err != nil:
+			return err
+		case existingRecord.Mode().IsDir():
+			return hackpadfs.ErrIsDir
+		}
+	}
 	b, err := record.Data()
 	if err != nil {
 		return err
 	}
 	data := b.Bytes()
 	length := b.Len()
-	_, err = s.client.PutObject(ctx, s.options.BucketName, key, bytes.NewReader(data), int64(length), minio.PutObjectOptions{
+	opts := minio.PutObjectOptions{
 		UserMetadata: map[string]string{
-			modeMetadataKey: strconv.FormatUint(uint64(record.Mode()), 8),
-			modTimeKey:      record.ModTime().Format(modTimeFormat),
+			modeMetadataKey:    strconv.FormatUint(uint64(record.Mode()), 8),
+			modTimeMetadataKey: record.ModTime().Format(modTimeFormat),
 		},
-	})
-	fmt.Printf("Upload error: %#v\n", err)
+	}
+	fmt.Println("--   Set: key =", key, "; header =", opts.Header())
+	_, err = s.client.PutObject(ctx, s.options.BucketName, key, bytes.NewReader(data), int64(length), opts)
 	return err
-}
-
-func (s *store) delete(ctx context.Context, name string) error {
-	record, err := s.Get(ctx, name)
-	if err != nil {
-		return err
-	}
-	isDir := record.Mode().IsDir()
-	if isDir {
-		dirNames, err := record.ReadDirNames()
-		if err != nil {
-			return err
-		}
-		if len(dirNames) > 0 {
-			return hackpadfs.ErrNotEmpty
-		}
-	}
-
-	key := s.fileToObjectKey(name, isDir)
-	fmt.Println("-- Deleting:", name, key)
-	return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
 }

@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	testDBPrefix          = "test-"
-	maxBucketPrefixLength = 30
+	maxBucketPrefixLength = 50
 	testDBHost            = "localhost:9000"
 	testDBAccessKeyID     = "minioadmin"
 	testDBSecretKey       = "minioadmin"
@@ -33,6 +32,7 @@ func init() {
 		panic(err)
 	}
 	go func() {
+		fmt.Println("Using minio path:", path)
 		defer os.RemoveAll(path)
 		minioServer.Main([]string{
 			"minio", "server", path,
@@ -53,7 +53,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	minioClient.TraceOn(os.Stdout)
 }
 
 func cleanTestName(tb testing.TB) string {
@@ -86,7 +85,7 @@ func cleanTestName(tb testing.TB) string {
 var testNumber uint64
 
 func makeFS(tb testing.TB) *FS {
-	bucketName := fmt.Sprintf("%s%s-%d", testDBPrefix, cleanTestName(tb), atomic.AddUint64(&testNumber, 1))
+	bucketName := fmt.Sprintf("%s-%d", cleanTestName(tb), atomic.AddUint64(&testNumber, 1))
 
 	ctx := context.Background()
 	err := minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
