@@ -33,6 +33,8 @@ const (
 	rootPath    = "files"
 	filePrefix  = "file-"
 	dirMetaName = "dir-meta"
+
+	octalSize = 8 // formats file mode, for convenient human-readable metadata
 )
 
 type store struct {
@@ -114,7 +116,7 @@ func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, erro
 
 	var mode hackpadfs.FileMode
 	if modeStr, ok := info.UserMetadata[modeMetadataKey]; ok {
-		modeInt, err := strconv.ParseUint(modeStr, 8, 64)
+		modeInt, err := strconv.ParseUint(modeStr, octalSize, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +159,7 @@ func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 	return func() (_ blob.Blob, returnedErr error) {
 		obj, err := s.client.GetObject(context.Background(), s.options.BucketName, key, minio.GetObjectOptions{})
 		if err != nil {
-			return nil, err
+			return nil, s.wrapS3Err(err)
 		}
 		defer func() {
 			err := obj.Close()
@@ -168,7 +170,7 @@ func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 
 		info, err := obj.Stat()
 		if err != nil {
-			return nil, err
+			return nil, s.wrapS3Err(err)
 		}
 
 		buf := make([]byte, info.Size)
@@ -176,7 +178,7 @@ func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
 		if err == io.EOF {
 			err = nil
 		}
-		return blob.NewBytes(buf), err
+		return blob.NewBytes(buf), s.wrapS3Err(err)
 	}
 }
 
@@ -216,7 +218,7 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 	length := b.Len()
 	opts := minio.PutObjectOptions{
 		UserMetadata: map[string]string{
-			modeMetadataKey:    strconv.FormatUint(uint64(record.Mode()), 8),
+			modeMetadataKey:    strconv.FormatUint(uint64(record.Mode()), octalSize),
 			modTimeMetadataKey: record.ModTime().Format(modTimeFormat),
 		},
 	}
