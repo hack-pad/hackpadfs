@@ -188,6 +188,9 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 			return err
 		}
 		key := s.fileToObjectKey(name, getRecord.Mode().IsDir())
+		if getRecord.Mode().IsDir() {
+			key = path.Dir(key) // remove directory recursively
+		}
 		return s.client.RemoveObject(ctx, s.options.BucketName, key, minio.RemoveObjectOptions{})
 	}
 
