@@ -32,7 +32,9 @@ func init() {
 		panic(err)
 	}
 	go func() {
-		defer os.RemoveAll(path)
+		defer func() {
+			_ = os.RemoveAll(path)
+		}()
 		minioServer.Main([]string{
 			"minio", "server", path,
 			"--address", ":9000",
@@ -103,7 +105,7 @@ func makeFS(tb testing.TB) *FS {
 		tb.Fatal(err)
 	}
 	tb.Cleanup(func() {
-		assert.NoError(tb, minioClient.RemoveBucketWithOptions(ctx, bucketName, minio.BucketOptions{
+		assert.NoError(tb, minioClient.RemoveBucketWithOptions(ctx, bucketName, minio.RemoveBucketOptions{
 			ForceDelete: true,
 		}))
 	})

@@ -7,11 +7,13 @@ import (
 	"github.com/hack-pad/hackpadfs/keyvalue"
 )
 
+// FS is an S3-based file system, storing files and metadata in an object storage bucket.
 type FS struct {
 	kv    *keyvalue.FS
 	store *store
 }
 
+// Options provides configuration options for a new FS.
 type Options struct {
 	Endpoint        string
 	BucketName      string
@@ -20,6 +22,7 @@ type Options struct {
 	Insecure        bool
 }
 
+// NewFS returns a new FS.
 func NewFS(options Options) (*FS, error) {
 	store, err := newStore(options)
 	if err != nil {

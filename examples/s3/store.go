@@ -58,9 +58,8 @@ func (s *store) fileToObjectKey(p string, isDir bool) string {
 	dir, file := path.Split(p)
 	if isDir {
 		return path.Join(rootPath, dir, file, dirMetaName)
-	} else {
-		return path.Join(rootPath, dir, filePrefix+file)
 	}
+	return path.Join(rootPath, dir, filePrefix+file)
 }
 
 func (s *store) objectKeyToFile(p string) string {
@@ -158,12 +157,18 @@ func (s *store) getDirNamesFunc(key string) func() ([]string, error) {
 }
 
 func (s *store) getDataFunc(key string) func() (blob.Blob, error) {
-	return func() (blob.Blob, error) {
+	return func() (_ blob.Blob, returnedErr error) {
 		obj, err := s.client.GetObject(context.Background(), s.options.BucketName, key, minio.GetObjectOptions{})
 		if err != nil {
 			return nil, err
 		}
-		defer obj.Close()
+		defer func() {
+			err := obj.Close()
+			if returnedErr == nil {
+				returnedErr = err
+			}
+		}()
+
 		info, err := obj.Stat()
 		if err != nil {
 			return nil, err
