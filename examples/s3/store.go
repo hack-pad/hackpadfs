@@ -64,14 +64,7 @@ func (s *store) fileToObjectKey(p string, isDir bool) string {
 }
 
 func (s *store) objectKeyToFile(p string) string {
-	switch {
-	case p == rootPath:
-		p = "."
-	case strings.HasPrefix(p, rootPath+"/"):
-		p = strings.TrimPrefix(p, rootPath+"/")
-	default:
-		panic("Unrecognized object key: " + p)
-	}
+	p = strings.TrimPrefix(p, rootPath+"/")
 	if strings.HasSuffix(p, "/") {
 		p = path.Join(p, dirMetaName)
 	}
@@ -87,21 +80,28 @@ func (s *store) objectKeyToFile(p string) string {
 	}
 }
 
-func (s *store) resolveFSErr(err error) error {
+func (s *store) wrapS3Err(err error) error {
+	if err == nil {
+		return nil
+	}
 	if minio.ToErrorResponse(err).Code == "NoSuchKey" {
 		return hackpadfs.ErrNotExist
 	}
 	return err
 }
 
+func (s *store) stat(ctx context.Context, key string) (minio.ObjectInfo, error) {
+	info, err := s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
+	return info, s.wrapS3Err(err)
+}
+
 func (s *store) Get(ctx context.Context, name string) (keyvalue.FileRecord, error) {
 	key := s.fileToObjectKey(name, true)
-	info, err := s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
-	err = s.resolveFSErr(err)
+	info, err := s.stat(ctx, key)
 	if errors.Is(err, hackpadfs.ErrNotExist) {
+		// not a directory, try file lookup instead
 		key = s.fileToObjectKey(name, false)
-		info, err = s.client.StatObject(ctx, s.options.BucketName, key, minio.StatObjectOptions{})
-		err = s.resolveFSErr(err)
+		info, err = s.stat(ctx, key)
 	}
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (s *store) getDirNamesFunc(key string) func() ([]string, error) {
 		var names []string
 		for info := range infoChan {
 			if info.Err != nil {
-				return nil, s.resolveFSErr(info.Err)
+				return nil, s.wrapS3Err(info.Err)
 			}
 			if info.Key != key {
 				filePath := s.objectKeyToFile(info.Key)
