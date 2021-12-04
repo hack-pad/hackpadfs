@@ -16,6 +16,7 @@ lint-deps:
 lint: lint-deps
 	"${GO_BIN}/golangci-lint" run
 	GOOS=js GOARCH=wasm "${GO_BIN}/golangci-lint" run
+	cd examples && "${GO_BIN}/golangci-lint" run
 
 .PHONY: test-deps
 test-deps:
@@ -31,6 +32,7 @@ test: test-deps
 	go test .  # Run library-level checks first, for more helpful build tag failure messages.
 	go test -race -coverprofile=cover.out ./...
 	GOOS=js GOARCH=wasm go test -cover ./...
+	cd examples && go test -race ./...
 	@if [[ "$$CI" == true ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github; \
