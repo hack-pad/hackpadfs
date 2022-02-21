@@ -11,6 +11,7 @@ Want to get started? Check out the [guides](#getting-started) below.
 * [`os.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/os) - The familiar `os` package. Implements all of the familiar behavior from the standard library using new interface design.
 * [`mem.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/mem) - In-memory file system.
 * [`indexeddb.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/indexeddb) - WebAssembly compatible file system, uses [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) under the hood.
+* [`tar.ReaderFS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/tar) - A streaming tar FS for memory and time-constrained programs.
 * [`mount.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/mount) - Composable file system. Capable of mounting file systems on top of each other.
 * [`keyvalue.FS`](https://pkg.go.dev/github.com/hack-pad/hackpadfs/keyvalue) - Generic key-value file system. Excellent for quickly writing your own file system. `mem.FS` and `indexeddb.FS` are built upon it.
 
