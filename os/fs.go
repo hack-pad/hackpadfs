@@ -1,24 +1,51 @@
 package os
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/hack-pad/hackpadfs"
 )
 
+const (
+	goosLinux   = "linux"
+	goosWindows = "windows"
+)
+
 // FS wraps the 'os' package as an FS implementation.
 type FS struct {
-	root string
+	root       string
+	volumeName string
 }
 
-// NewFS returns a new FS. All file paths are relative to the root path ('/' on Unix).
-// Use fs.Sub() to select a different root path.
+// NewFS returns a new FS. All file paths are relative to the root path.
+// Root is '/' on Unix and 'C:\' on Windows.
+// Use fs.Sub() to select a different root path. SubVolume on Windows can set the volume name.
 func NewFS() *FS {
 	return &FS{}
+}
+
+// SubVolume is like Sub, but only sets the volume name (i.e. for Windows).
+// Calling SubVolume again on the returned FS results in an error.
+func (fs *FS) SubVolume(volumeName string) (hackpadfs.FS, error) {
+	if fs.root != "" {
+		return nil, &hackpadfs.PathError{Op: "subvolume", Path: volumeName, Err: errors.New("subvolume not supported on a SubFS")}
+	}
+	if fs.volumeName != "" {
+		return nil, &hackpadfs.PathError{Op: "subvolume", Path: volumeName, Err: errors.New("subvolume can only be called once per os.FS")}
+	}
+	if vol := filepath.VolumeName(volumeName); vol != volumeName {
+		return nil, &hackpadfs.PathError{Op: "subvolume", Path: volumeName, Err: fmt.Errorf("sub volume must be equal to resolved volume: %q != %q", volumeName, vol)}
+	}
+	return &FS{
+		volumeName: volumeName,
+	}, nil
 }
 
 // Sub implements hackpadfs.SubFS
@@ -27,17 +54,42 @@ func (fs *FS) Sub(dir string) (hackpadfs.FS, error) {
 		return nil, &hackpadfs.PathError{Op: "sub", Path: dir, Err: hackpadfs.ErrInvalid}
 	}
 	return &FS{
-		root: path.Join(fs.root, dir),
+		root:       path.Join(fs.root, dir),
+		volumeName: fs.volumeName,
 	}, nil
 }
 
 func (fs *FS) rootedPath(op, name string) (string, *hackpadfs.PathError) {
+	return fs.rootedPathGOOS(runtime.GOOS, filepath.Separator, op, name)
+}
+
+func (fs *FS) rootedPathGOOS(goos string, separator rune, op, name string) (string, *hackpadfs.PathError) {
 	if !hackpadfs.ValidPath(name) {
 		return "", &hackpadfs.PathError{Op: op, Path: name, Err: hackpadfs.ErrInvalid}
 	}
-	// TODO handle Windows' special "root" volume names
 	name = path.Join("/", fs.root, name)
-	return filepath.FromSlash(name), nil
+	filePath := joinSepPath(string(separator), fs.getVolumeName(goos), fromSeparator(separator, name))
+	return filePath, nil
+}
+
+func joinSepPath(separator, elem1, elem2 string) string {
+	elem1 = strings.TrimRight(elem1, separator)
+	elem2 = strings.TrimLeft(elem2, separator)
+	return elem1 + separator + elem2
+}
+
+func fromSeparator(separator rune, path string) string {
+	if separator == '/' {
+		return path
+	}
+	return strings.ReplaceAll(path, "/", string(separator))
+}
+
+func (fs *FS) getVolumeName(goos string) string {
+	if goos == goosWindows && fs.volumeName == "" {
+		return `C:`
+	}
+	return fs.volumeName
 }
 
 // wrapRelPathErr restores path names to the caller's path names, without the root path prefix
