@@ -641,7 +641,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		err = fs.Remove("foo")
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
+			assert.ErrorIs(tb, hackpadfs.ErrNotEmpty, err)
 			assert.Equal(tb, "remove", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
