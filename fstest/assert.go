@@ -86,3 +86,14 @@ func (o FSOptions) assertEqualQuickInfos(tb testing.TB, a, b []quickInfo) bool {
 	}
 	return assert.Equal(tb, a, b)
 }
+
+func (o FSOptions) assertSubsetQuickInfos(tb testing.TB, a, b []quickInfo) bool {
+	tb.Helper()
+	for i := range a {
+		a[i].Mode = a[i].Mode & o.Constraints.FileModeMask
+	}
+	for i := range b {
+		b[i].Mode = b[i].Mode & o.Constraints.FileModeMask
+	}
+	return assert.Subset(tb, a, b)
+}

@@ -543,7 +543,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		sort.SliceStable(entries, func(a, b int) bool {
 			return entries[a].Name() < entries[b].Name()
 		})
-		assert.Subset(tb, []quickInfo{
+		o.assertSubsetQuickInfos(tb, []quickInfo{
 			{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true},
 			{Name: "foo", Mode: 0666},
 		}, asQuickDirInfos(tb, entries))
@@ -578,8 +578,8 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		entries = append(entries, entries1...)
 		entries = append(entries, entries2...)
 		assert.Equal(tb, 2, len(entries))
-		assert.Subset(tb, asQuickDirInfos(tb, entries), asQuickDirInfos(tb, entriesAll))
-		assert.Subset(tb, []quickInfo{
+		o.assertSubsetQuickInfos(tb, asQuickDirInfos(tb, entries), asQuickDirInfos(tb, entriesAll))
+		o.assertSubsetQuickInfos(tb, []quickInfo{
 			{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true},
 			{Name: "foo", Mode: 0666},
 		}, asQuickDirInfos(tb, entriesAll))
@@ -595,7 +595,10 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		f := readDirFile(tb, file)
 		entries, err := f.ReadDir(100000000)
 		assert.NoError(tb, err)
-		assert.Contains(tb, asQuickDirInfos(tb, entries), quickInfo{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true})
+		o.assertSubsetQuickInfos(tb,
+			[]quickInfo{{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true}},
+			asQuickDirInfos(tb, entries),
+		)
 	})
 
 	tbRun(tb, "list empty subdirectory", func(tb testing.TB) {
