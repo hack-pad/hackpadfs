@@ -123,7 +123,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 	_, commit := o.Setup.FS(tb)
 	_, _ = createFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
 
-	tbRun(tb, "new file", func(tb testing.TB) {
+	o.tbRun(tb, "new file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		file, err := createFn(fs, "foo")
@@ -140,7 +140,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 		}, asQuickInfo(info))
 	})
 
-	tbRun(tb, "existing file", func(tb testing.TB) {
+	o.tbRun(tb, "existing file", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 
@@ -165,7 +165,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 		}, asQuickInfo(info))
 	})
 
-	tbRun(tb, "existing directory", func(tb testing.TB) {
+	o.tbRun(tb, "existing directory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		fs := commit()
@@ -178,7 +178,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 		}
 	})
 
-	tbRun(tb, "parent directory must exist", func(tb testing.TB) {
+	o.tbRun(tb, "parent directory must exist", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		_, err := createFn(fs, "foo/bar")
@@ -231,7 +231,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "fail dir exists", func(tb testing.TB) {
+	o.tbRun(tb, "fail dir exists", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirFS(tb, commit())
 		assert.NoError(tb, fs.Mkdir("foo", 0600))
@@ -247,7 +247,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "fail file exists", func(tb testing.TB) {
+	o.tbRun(tb, "fail file exists", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -267,7 +267,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "create sub dir", func(tb testing.TB) {
+	o.tbRun(tb, "create sub dir", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirFS(tb, commit())
 		assert.NoError(tb, fs.Mkdir("foo", 0700))
@@ -279,7 +279,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "only permission bits allowed", func(tb testing.TB) {
+	o.tbRun(tb, "only permission bits allowed", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirFS(tb, commit())
 		assert.NoError(tb, fs.Mkdir("foo", hackpadfs.ModeSocket|0755))
@@ -289,7 +289,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "parent directory must exist", func(tb testing.TB) {
+	o.tbRun(tb, "parent directory must exist", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirFS(tb, commit())
 
@@ -316,7 +316,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "create one directory", func(tb testing.TB) {
+	o.tbRun(tb, "create one directory", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirAllFS(tb, commit())
 		assert.NoError(tb, fs.MkdirAll("foo", 0700))
@@ -325,7 +325,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "create multiple directories", func(tb testing.TB) {
+	o.tbRun(tb, "create multiple directories", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirAllFS(tb, commit())
 		assert.NoError(tb, fs.MkdirAll("foo/bar", 0700))
@@ -335,7 +335,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "all directories exist", func(tb testing.TB) {
+	o.tbRun(tb, "all directories exist", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo/bar", 0644))
@@ -348,7 +348,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "file exists", func(tb testing.TB) {
+	o.tbRun(tb, "file exists", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -368,7 +368,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "illegal permission bits", func(tb testing.TB) {
+	o.tbRun(tb, "illegal permission bits", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := mkdirAllFS(tb, commit())
 		assert.NoError(tb, fs.MkdirAll("foo/bar", hackpadfs.ModeSocket|0777))
@@ -392,7 +392,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 	_, commit := o.Setup.FS(tb)
 	_, _ = openFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
 
-	tbRun(tb, "invalid path", func(tb testing.TB) {
+	o.tbRun(tb, "invalid path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		_, err := openFn(fs, "foo/../bar")
@@ -405,7 +405,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		}
 	})
 
-	tbRun(tb, "does not exist", func(tb testing.TB) {
+	o.tbRun(tb, "does not exist", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		_, err := openFn(fs, "foo")
@@ -417,7 +417,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		}
 	})
 
-	tbRun(tb, "open file", func(tb testing.TB) {
+	o.tbRun(tb, "open file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -432,7 +432,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		}
 	})
 
-	tbRun(tb, "supports reads", func(tb testing.TB) {
+	o.tbRun(tb, "supports reads", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
@@ -456,7 +456,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "fails writes", func(tb testing.TB) {
+	o.tbRun(tb, "fails writes", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -486,19 +486,19 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		tb.Skip("FS is not an OpenFileFS")
 		return nil
 	}
-	tbRun(tb, "read-only", func(tb testing.TB) {
+	o.tbRun(tb, "read-only", func(tb testing.TB) {
 		testOpen(tb, o, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
 			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadOnly, 0777)
 		})
 	})
 
-	tbRun(tb, "create", func(tb testing.TB) {
+	o.tbRun(tb, "create", func(tb testing.TB) {
 		testCreate(tb, o, func(fs hackpadfs.FS, name string) (hackpadfs.File, error) {
 			return openFileFS(tb, fs).OpenFile(name, hackpadfs.FlagReadWrite|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 		})
 	})
 
-	tbRun(tb, "create illegal perms", func(tb testing.TB) {
+	o.tbRun(tb, "create illegal perms", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := openFileFS(tb, commit())
 		f, err := fs.OpenFile("foo", hackpadfs.FlagReadOnly|hackpadfs.FlagCreate, hackpadfs.ModeSocket|0777)
@@ -510,7 +510,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "truncate on existing file", func(tb testing.TB) {
+	o.tbRun(tb, "truncate on existing file", func(tb testing.TB) {
 		const fileContents = "hello world"
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
@@ -528,7 +528,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "truncate on non-existent file", func(tb testing.TB) {
+	o.tbRun(tb, "truncate on non-existent file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := openFileFS(tb, commit())
 		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
@@ -540,7 +540,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "truncate on existing dir", func(tb testing.TB) {
+	o.tbRun(tb, "truncate on existing dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		fs := openFileFS(tb, commit())
@@ -553,7 +553,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "append flag writes to end", func(tb testing.TB) {
+	o.tbRun(tb, "append flag writes to end", func(tb testing.TB) {
 		const (
 			fileContents1 = "hello world"
 			fileContents2 = "sup "
@@ -590,7 +590,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "remove file", func(tb testing.TB) {
+	o.tbRun(tb, "remove file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -602,7 +602,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove empty dir", func(tb testing.TB) {
+	o.tbRun(tb, "remove empty dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
@@ -611,7 +611,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove non-existing file", func(tb testing.TB) {
+	o.tbRun(tb, "remove non-existing file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := removeFS(tb, commit())
 		err := fs.Remove("foo")
@@ -624,7 +624,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
+	o.tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		f, err := hackpadfs.Create(setupFS, "foo/bar")
@@ -660,7 +660,7 @@ func TestRemoveAll(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "remove file", func(tb testing.TB) {
+	o.tbRun(tb, "remove file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -672,7 +672,7 @@ func TestRemoveAll(tb testing.TB, o FSOptions) {
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove empty dir", func(tb testing.TB) {
+	o.tbRun(tb, "remove empty dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
@@ -681,14 +681,14 @@ func TestRemoveAll(tb testing.TB, o FSOptions) {
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove non-existing file", func(tb testing.TB) {
+	o.tbRun(tb, "remove non-existing file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := removeAllFS(tb, commit())
 		assert.NoError(tb, fs.RemoveAll("foo"))
 		o.tryAssertEqualFS(tb, map[string]fsEntry{}, fs)
 	})
 
-	tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
+	o.tbRun(tb, "remove non-empty dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		f, err := hackpadfs.Create(setupFS, "foo/bar")
@@ -717,7 +717,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "oldpath does not exist", func(tb testing.TB) {
+	o.tbRun(tb, "oldpath does not exist", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "bar")
@@ -730,7 +730,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "inside same directory", func(tb testing.TB) {
+	o.tbRun(tb, "inside same directory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		f, err := hackpadfs.Create(setupFS, "foo/bar")
@@ -746,7 +746,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "inside same directory in root", func(tb testing.TB) {
+	o.tbRun(tb, "inside same directory in root", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "bar")
 		if assert.NoError(tb, err) {
@@ -760,7 +760,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "same file", func(tb testing.TB) {
+	o.tbRun(tb, "same file", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
@@ -779,14 +779,14 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "same directory", func(tb testing.TB) {
+	o.tbRun(tb, "same directory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
 		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "foo")
 
-		if !o.Constraints.RenameToSelfNoOp && assert.Error(tb, err) {
+		if assert.Error(tb, err) {
 			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			switch err := err.(type) {
 			case *hackpadfs.LinkError:
@@ -803,7 +803,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "newpath is directory", func(tb testing.TB) {
+	o.tbRun(tb, "newpath is directory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
@@ -828,7 +828,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "newpath in root", func(tb testing.TB) {
+	o.tbRun(tb, "newpath in root", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
@@ -847,7 +847,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "newpath in subdirectory", func(tb testing.TB) {
+	o.tbRun(tb, "newpath in subdirectory", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
@@ -866,7 +866,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		}, fs)
 	})
 
-	tbRun(tb, "non-empty directory", func(tb testing.TB) {
+	o.tbRun(tb, "non-empty directory", func(tb testing.TB) {
 		const fileContents = `hello world`
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
@@ -898,7 +898,7 @@ func TestStat(tb testing.TB, o FSOptions) {
 }
 
 func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, string) (hackpadfs.FileInfo, error)) {
-	tbRun(tb, "invalid path", func(tb testing.TB) {
+	o.tbRun(tb, "invalid path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		_, err := stater(tb, fs, "foo/../bar")
@@ -909,7 +909,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 		}
 	})
 
-	tbRun(tb, "stat root", func(tb testing.TB) {
+	o.tbRun(tb, "stat root", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		info, err := stater(tb, fs, ".")
@@ -918,7 +918,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 		}
 	})
 
-	tbRun(tb, "stat a file", func(tb testing.TB) {
+	o.tbRun(tb, "stat a file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -938,7 +938,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 		})
 	})
 
-	tbRun(tb, "stat a directory", func(tb testing.TB) {
+	o.tbRun(tb, "stat a directory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		err := hackpadfs.Mkdir(setupFS, "foo", 0755)
 		assert.NoError(tb, err)
@@ -953,7 +953,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 		}, asQuickInfo(info))
 	})
 
-	tbRun(tb, "stat nested files", func(tb testing.TB) {
+	o.tbRun(tb, "stat nested files", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		err := hackpadfs.Mkdir(setupFS, "foo", 0755)
 		assert.NoError(tb, err)
@@ -997,7 +997,7 @@ func TestChmod(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "change permission bits", func(tb testing.TB) {
+	o.tbRun(tb, "change permission bits", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -1015,7 +1015,7 @@ func TestChmod(tb testing.TB, o FSOptions) {
 		}, asQuickInfo(info))
 	})
 
-	tbRun(tb, "change symlink target permission bits", func(tb testing.TB) {
+	o.tbRun(tb, "change symlink target permission bits", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		if _, ok := setupFS.(hackpadfs.SymlinkFS); !ok {
 			tb.Skip("FS is not an SymlinkFS")
@@ -1061,7 +1061,7 @@ func TestChtimes(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "file does not exist", func(tb testing.TB) {
+	o.tbRun(tb, "file does not exist", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := chtimesFS(tb, commit())
 		err := fs.Chtimes("foo", accessTime, modifyTime)
@@ -1073,7 +1073,7 @@ func TestChtimes(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "change access and modify times", func(tb testing.TB) {
+	o.tbRun(tb, "change access and modify times", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -1103,7 +1103,7 @@ func TestReadFile(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "not exists", func(tb testing.TB) {
+	o.tbRun(tb, "not exists", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := readFileFS(tb, commit())
 		_, err := fs.ReadFile("foo")
@@ -1115,7 +1115,7 @@ func TestReadFile(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "exists", func(tb testing.TB) {
+	o.tbRun(tb, "exists", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		const contents = "hello"
 		f, err := hackpadfs.Create(setupFS, "foo")

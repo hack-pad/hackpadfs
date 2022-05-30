@@ -29,7 +29,7 @@ func TestFileClose(tb testing.TB, o FSOptions) {
 
 func TestFileRead(tb testing.TB, o FSOptions) {
 	const fileContents = "hello world"
-	tbRun(tb, "read empty", func(tb testing.TB) {
+	o.tbRun(tb, "read empty", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -48,7 +48,7 @@ func TestFileRead(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "read a few bytes at a time", func(tb testing.TB) {
+	o.tbRun(tb, "read a few bytes at a time", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		const firstBufLen = 2
 		f, err := hackpadfs.Create(setupFS, "foo")
@@ -143,7 +143,7 @@ func TestFileReadAt(tb testing.TB, o FSOptions) {
 			expectErr:   io.EOF,
 		},
 	} {
-		tbRun(tb, tc.description, func(tb testing.TB) {
+		o.tbRun(tb, tc.description, func(tb testing.TB) {
 			tbParallel(tb)
 			file, err := fs.Open("foo")
 			if !assert.NoError(tb, err) {
@@ -188,10 +188,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "seek unknown start", func(tb testing.TB) {
-		if o.Constraints.InvalidSeekWhenceUndefined {
-			tb.Skip("Invalid 'whence' value in Seek() is left as undefined behavior")
-		}
+	o.tbRun(tb, "seek unknown start", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -214,7 +211,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "seek negative offset", func(tb testing.TB) {
+	o.tbRun(tb, "seek negative offset", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -237,7 +234,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "seek start", func(tb testing.TB) {
+	o.tbRun(tb, "seek start", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -261,7 +258,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "seek current", func(tb testing.TB) {
+	o.tbRun(tb, "seek current", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -288,7 +285,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "seek end", func(tb testing.TB) {
+	o.tbRun(tb, "seek end", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -324,7 +321,7 @@ func TestFileWrite(tb testing.TB, o FSOptions) {
 }
 
 func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byte) (int, error)) {
-	tbRun(tb, "write-read", func(tb testing.TB) {
+	o.tbRun(tb, "write-read", func(tb testing.TB) {
 		const fileContents = "hello world"
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
@@ -350,7 +347,7 @@ func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byt
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "write-truncate-write-read", func(tb testing.TB) {
+	o.tbRun(tb, "write-truncate-write-read", func(tb testing.TB) {
 		const fileContents = "hello world"
 		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
@@ -388,7 +385,7 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "negative offset", func(tb testing.TB) {
+	o.tbRun(tb, "negative offset", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -415,7 +412,7 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 		}
 	})
 
-	tbRun(tb, "no offset", func(tb testing.TB) {
+	o.tbRun(tb, "no offset", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -443,7 +440,7 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, file.Close())
 	})
 
-	tbRun(tb, "offset inside file", func(tb testing.TB) {
+	o.tbRun(tb, "offset inside file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -475,7 +472,7 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, file.Close())
 	})
 
-	tbRun(tb, "offset outside file", func(tb testing.TB) {
+	o.tbRun(tb, "offset outside file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -514,7 +511,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		return nil
 	}
 
-	tbRun(tb, "list initial root", func(tb testing.TB) {
+	o.tbRun(tb, "list initial root", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		file, err := fs.Open(".")
@@ -525,7 +522,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, f.Close())
 	})
 
-	tbRun(tb, "list root", func(tb testing.TB) {
+	o.tbRun(tb, "list root", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -549,7 +546,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		}, asQuickDirInfos(tb, entries))
 	})
 
-	tbRun(tb, "readdir batches", func(tb testing.TB) {
+	o.tbRun(tb, "readdir batches", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -585,7 +582,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		}, asQuickDirInfos(tb, entriesAll))
 	})
 
-	tbRun(tb, "readdir high N", func(tb testing.TB) {
+	o.tbRun(tb, "readdir high N", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
 
@@ -601,7 +598,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		)
 	})
 
-	tbRun(tb, "list empty subdirectory", func(tb testing.TB) {
+	o.tbRun(tb, "list empty subdirectory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 
@@ -615,7 +612,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		assert.Equal(tb, 0, len(entries))
 	})
 
-	tbRun(tb, "list subdirectory", func(tb testing.TB) {
+	o.tbRun(tb, "list subdirectory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		file, err := hackpadfs.Create(setupFS, "foo/bar")
@@ -713,7 +710,7 @@ func TestFileTruncate(tb testing.TB, o FSOptions) {
 			size:        int64(len(fileContents)) * 2,
 		},
 	} {
-		tbRun(tb, tc.description, func(tb testing.TB) {
+		o.tbRun(tb, tc.description, func(tb testing.TB) {
 			setupFS, commit := o.Setup.FS(tb)
 			file, err := hackpadfs.Create(setupFS, "foo")
 			if assert.NoError(tb, err) {

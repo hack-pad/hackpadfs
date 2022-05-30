@@ -27,6 +27,12 @@ type FSOptions struct {
 	// Contraints limits tests to a reduced set of assertions.
 	// For example, setting FileModeMask limits FileMode assertions on a file's Stat() result.
 	Constraints Constraints
+
+	// ShouldSkip determines if the current test with features defined by 'facets' should be skipped.
+	// ShouldSkip() is intended for handling undefined behavior in existing systems outside one's control.
+	//
+	// NOTE: This MUST NOT be used lightly. Any custom skips severely impairs the quality of a standardized file system.
+	ShouldSkip func(facets Facets) bool
 }
 
 // SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
@@ -58,10 +64,13 @@ func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 type Constraints struct {
 	// FileModeMask disables mode checks on the specified bits. Defaults to checking all bits (0).
 	FileModeMask hackpadfs.FileMode
-	// InvalidSeekWhenceUndefined is true when the behavior of Seek() with an invalid 'whence' is not defined. Windows seems to be the only candidate where no error occurs.
-	InvalidSeekWhenceUndefined bool
-	// RenameToSelfNoOp is true when renaming a file to an identical path should be a no-op, instead of an error.
-	RenameToSelfNoOp bool
+}
+
+// Facets contains details for the current test.
+// Used in FSOptions.ShouldSkip() inspect and skip tests that should not apply.
+type Facets struct {
+	// Name is the full name of the current test
+	Name string
 }
 
 func setupOptions(options *FSOptions) error {
@@ -78,7 +87,41 @@ func setupOptions(options *FSOptions) error {
 			return fs, func() hackpadfs.FS { return fs }
 		})
 	}
+	if options.ShouldSkip == nil {
+		options.ShouldSkip = func(facets Facets) bool {
+			return false
+		}
+	}
 	return nil
+}
+
+func (o FSOptions) tbRun(tb testing.TB, name string, subtest func(tb testing.TB)) {
+	switch tb := tb.(type) {
+	case *testing.T:
+		tb.Run(name, func(t *testing.T) {
+			t.Helper()
+			facets := Facets{
+				Name: t.Name(),
+			}
+			if o.ShouldSkip(facets) {
+				t.Skipf("FSOption.ShouldSkip: %#v", facets)
+			}
+			subtest(t)
+		})
+	case *testing.B:
+		tb.Run(name, func(b *testing.B) {
+			b.Helper()
+			facets := Facets{
+				Name: b.Name(),
+			}
+			if o.ShouldSkip(facets) {
+				b.Skipf("FSOption.ShouldSkip: %#v", facets)
+			}
+			subtest(b)
+		})
+	default:
+		tb.Errorf("Unrecognized testing type: %T", tb)
+	}
 }
 
 // FS runs file system tests. All FS interfaces from hackpadfs.*FS are tested.
@@ -90,7 +133,7 @@ func FS(tb testing.TB, options FSOptions) {
 		tb.Fatal(err)
 		return
 	}
-	tbRun(tb, options.Name, func(tb testing.TB) {
+	options.tbRun(tb, options.Name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFS(tb, options)
@@ -106,7 +149,7 @@ func File(tb testing.TB, options FSOptions) {
 		tb.Fatal(err)
 		return
 	}
-	tbRun(tb, options.Name, func(tb testing.TB) {
+	options.tbRun(tb, options.Name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFile(tb, options)
@@ -116,23 +159,6 @@ func File(tb testing.TB, options FSOptions) {
 func tbParallel(tb testing.TB) {
 	if par, ok := tb.(interface{ Parallel() }); ok {
 		par.Parallel()
-	}
-}
-
-func tbRun(tb testing.TB, name string, subtest func(tb testing.TB)) {
-	switch tb := tb.(type) {
-	case *testing.T:
-		tb.Run(name, func(t *testing.T) {
-			t.Helper()
-			subtest(t)
-		})
-	case *testing.B:
-		tb.Run(name, func(b *testing.B) {
-			b.Helper()
-			subtest(b)
-		})
-	default:
-		tb.Errorf("Unrecognized testing type: %T", tb)
 	}
 }
 
@@ -148,7 +174,7 @@ func newSubtaskRunner(tb testing.TB, options FSOptions) *tbSubtaskRunner {
 type subtaskFunc func(tb testing.TB, options FSOptions)
 
 func (r *tbSubtaskRunner) Run(name string, subtask subtaskFunc) {
-	tbRun(r.tb, name, func(tb testing.TB) {
+	r.options.tbRun(r.tb, name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		subtask(tb, r.options)
