@@ -133,7 +133,7 @@ func FS(tb testing.TB, options FSOptions) {
 		tb.Fatal(err)
 		return
 	}
-	options.tbRun(tb, options.Name, func(tb testing.TB) {
+	options.tbRun(tb, options.Name+"_FS", func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFS(tb, options)
@@ -149,7 +149,7 @@ func File(tb testing.TB, options FSOptions) {
 		tb.Fatal(err)
 		return
 	}
-	options.tbRun(tb, options.Name, func(tb testing.TB) {
+	options.tbRun(tb, options.Name+"_File", func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFile(tb, options)
