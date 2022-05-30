@@ -23,7 +23,7 @@ func (o FSOptions) tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, 
 	}
 
 	for path, entry := range expected {
-		entry.Mode = entry.Mode & o.Constraints.FileModeMask
+		entry.Mode &= o.Constraints.FileModeMask
 		expected[path] = entry
 	}
 
@@ -50,7 +50,7 @@ func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries 
 				size = info.Size()
 			}
 		}
-		mode = mode & o.Constraints.FileModeMask
+		mode &= o.Constraints.FileModeMask
 
 		name := entry.Name()
 		assert.Equal(tb, true, hackpadfs.ValidPath(name))
@@ -71,18 +71,18 @@ func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries 
 
 func (o FSOptions) assertEqualQuickInfo(tb testing.TB, a, b quickInfo) bool {
 	tb.Helper()
-	a.Mode = a.Mode & o.Constraints.FileModeMask
-	b.Mode = b.Mode & o.Constraints.FileModeMask
+	a.Mode &= o.Constraints.FileModeMask
+	b.Mode &= o.Constraints.FileModeMask
 	return assert.Equal(tb, a, b)
 }
 
 func (o FSOptions) assertEqualQuickInfos(tb testing.TB, a, b []quickInfo) bool {
 	tb.Helper()
 	for i := range a {
-		a[i].Mode = a[i].Mode & o.Constraints.FileModeMask
+		a[i].Mode &= o.Constraints.FileModeMask
 	}
 	for i := range b {
-		b[i].Mode = b[i].Mode & o.Constraints.FileModeMask
+		b[i].Mode &= o.Constraints.FileModeMask
 	}
 	return assert.Equal(tb, a, b)
 }
@@ -90,10 +90,10 @@ func (o FSOptions) assertEqualQuickInfos(tb testing.TB, a, b []quickInfo) bool {
 func (o FSOptions) assertSubsetQuickInfos(tb testing.TB, a, b []quickInfo) bool {
 	tb.Helper()
 	for i := range a {
-		a[i].Mode = a[i].Mode & o.Constraints.FileModeMask
+		a[i].Mode &= o.Constraints.FileModeMask
 	}
 	for i := range b {
-		b[i].Mode = b[i].Mode & o.Constraints.FileModeMask
+		b[i].Mode &= o.Constraints.FileModeMask
 	}
 	return assert.Subset(tb, a, b)
 }

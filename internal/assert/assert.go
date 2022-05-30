@@ -227,6 +227,7 @@ func subset(tb testing.TB, expected, actual interface{}) bool {
 	}
 }
 
+// ErrorIs asserts 'err' matches the expected 'target'. Uses errors.Is().
 func ErrorIs(tb testing.TB, target, err error) bool {
 	tb.Helper()
 	if errors.Is(err, target) {

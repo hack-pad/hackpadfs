@@ -62,7 +62,7 @@ func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 	return fn(tb)
 }
 
-// Contraints limits tests to a reduced set of assertions due to non-standard behavior. Avoid setting any of these.
+// Constraints limits tests to a reduced set of assertions due to non-standard behavior. Avoid setting any of these.
 type Constraints struct {
 	// FileModeMask disables mode checks on the specified bits. Defaults to checking all bits (0).
 	FileModeMask hackpadfs.FileMode
