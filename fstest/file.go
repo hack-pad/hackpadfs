@@ -167,7 +167,7 @@ func TestFileReadAt(tb testing.TB, o FSOptions) {
 					assert.Equal(tb, "readat", err.Op)
 					assert.Equal(tb, "foo", err.Path)
 				}
-				assert.Equal(tb, true, errors.Is(err, tc.expectErr))
+				assert.ErrorIs(tb, tc.expectErr, err)
 				return
 			}
 			assert.NoError(tb, err)
@@ -206,7 +206,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "seek", err.Op)
 			assert.Equal(tb, "foo", err.Path)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 		}
 		assert.NoError(tb, f.Close())
 	})
@@ -229,7 +229,7 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "seek", err.Op)
 			assert.Equal(tb, "foo", err.Path)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 		}
 		assert.NoError(tb, f.Close())
 	})
@@ -711,6 +711,7 @@ func TestFileTruncate(tb testing.TB, o FSOptions) {
 			if assert.NoError(tb, err) {
 				_, err = hackpadfs.WriteFile(file, []byte(fileContents))
 				assert.NoError(tb, err)
+				assert.NoError(tb, file.Close())
 			}
 
 			fs, ok := commit().(hackpadfs.OpenFileFS)
@@ -731,7 +732,7 @@ func TestFileTruncate(tb testing.TB, o FSOptions) {
 					err := err.(*hackpadfs.PathError)
 					assert.Equal(tb, "truncate", err.Op)
 					assert.Equal(tb, "foo", err.Path)
-					assert.Equal(tb, tc.expectErrKind, err.Err)
+					assert.ErrorIs(tb, tc.expectErrKind, err.Err)
 				}
 				o.tryAssertEqualFS(tb, map[string]fsEntry{
 					"foo": {Mode: 0666, Size: int64(len(fileContents))},

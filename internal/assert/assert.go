@@ -2,6 +2,7 @@ package assert
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -224,4 +225,13 @@ func subset(tb testing.TB, expected, actual interface{}) bool {
 		tb.Errorf("Invalid subset type. Expected slice, got: %T", expected)
 		return false
 	}
+}
+
+func ErrorIs(tb testing.TB, target, err error) bool {
+	tb.Helper()
+	if errors.Is(err, target) {
+		return true
+	}
+	tb.Errorf("Error must match target:\nExpected: %s\nActual:   %s", target, err)
+	return false
 }

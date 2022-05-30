@@ -3,7 +3,7 @@ package fstest
 import (
 	// Avoid importing "os" package in fstest if we can, since not all environments may be able to support it.
 	// Not to mention it should compile a little faster. :)
-	"errors"
+
 	"fmt"
 	"io"
 	"testing"
@@ -174,7 +174,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo", err.Path)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrIsDir))
+			assert.ErrorIs(tb, hackpadfs.ErrIsDir, err)
 		}
 	})
 
@@ -186,7 +186,7 @@ func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) 
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo/bar", err.Path)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 		}
 	})
 }
@@ -238,7 +238,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		err := fs.Mkdir("foo", 0600)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			assert.Equal(tb, "mkdir", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -258,7 +258,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		err = fs.Mkdir("foo", 0600)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			assert.Equal(tb, "mkdir", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -296,7 +296,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 		err := fs.Mkdir("foo/bar", 0755)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "mkdir", err.Op)
 			assert.Equal(tb, "foo/bar", err.Path)
 		}
@@ -359,7 +359,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 		err = fs.MkdirAll("foo/bar", 0700)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotDir))
+			assert.ErrorIs(tb, hackpadfs.ErrNotDir, err)
 			assert.Equal(tb, "mkdir", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -399,7 +399,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			tb.Log(err.Err)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo/../bar", err.Path)
 		}
@@ -411,7 +411,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 		_, err := openFn(fs, "foo")
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -534,7 +534,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -547,7 +547,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrIsDir))
+			assert.ErrorIs(tb, hackpadfs.ErrIsDir, err)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -617,7 +617,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		err := fs.Remove("foo")
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "remove", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -636,7 +636,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 		err = fs.Remove("foo")
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			assert.Equal(tb, "remove", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -723,7 +723,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		err := fs.Rename("foo", "bar")
 		if assert.IsType(tb, &hackpadfs.LinkError{}, err) {
 			err := err.(*hackpadfs.LinkError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "rename", err.Op)
 			assert.Equal(tb, "foo", err.Old)
 			assert.Equal(tb, "bar", err.New)
@@ -787,7 +787,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		err := fs.Rename("foo", "foo")
 
 		if assert.Error(tb, err) {
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			switch err := err.(type) {
 			case *hackpadfs.LinkError:
 				assert.Equal(tb, "rename", err.Op)
@@ -811,7 +811,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "bar")
 		if assert.Error(tb, err) {
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrExist))
+			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			switch err := err.(type) {
 			case *hackpadfs.LinkError:
 				assert.Equal(tb, "rename", err.Op)
@@ -905,7 +905,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "foo/../bar", err.Path)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrInvalid))
+			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 		}
 	})
 
@@ -1067,7 +1067,7 @@ func TestChtimes(tb testing.TB, o FSOptions) {
 		err := fs.Chtimes("foo", accessTime, modifyTime)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "chtimes", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
@@ -1109,7 +1109,7 @@ func TestReadFile(tb testing.TB, o FSOptions) {
 		_, err := fs.ReadFile("foo")
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, true, errors.Is(err, hackpadfs.ErrNotExist))
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
 			assert.Equal(tb, "open", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
