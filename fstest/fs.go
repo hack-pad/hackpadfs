@@ -121,7 +121,10 @@ func TestCreate(tb testing.TB, o FSOptions) {
 
 func testCreate(tb testing.TB, o FSOptions, createFn func(hackpadfs.FS, string) (hackpadfs.File, error)) {
 	_, commit := o.Setup.FS(tb)
-	_, _ = createFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
+	f, err := createFn(commit(), "foo") // trigger tb.Skip() for incompatible FS's
+	if assert.NoError(tb, err) {
+		assert.NoError(tb, f.Close())
+	}
 
 	o.tbRun(tb, "new file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
@@ -521,8 +524,10 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		}
 
 		fs := openFileFS(tb, commit())
-		_, err = fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
-		assert.NoError(tb, err)
+		f, err = fs.OpenFile("foo", hackpadfs.FlagTruncate|hackpadfs.FlagWriteOnly, 0700)
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
 		o.tryAssertEqualFS(tb, map[string]fsEntry{
 			"foo": {Mode: 0666},
 		}, fs)
@@ -531,7 +536,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "truncate on non-existent file", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := openFileFS(tb, commit())
-		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
+		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate|hackpadfs.FlagWriteOnly, 0700)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
@@ -544,7 +549,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 		setupFS, commit := o.Setup.FS(tb)
 		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
 		fs := openFileFS(tb, commit())
-		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate, 0700)
+		_, err := fs.OpenFile("foo", hackpadfs.FlagTruncate|hackpadfs.FlagWriteOnly, 0700)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.ErrorIs(tb, hackpadfs.ErrIsDir, err)

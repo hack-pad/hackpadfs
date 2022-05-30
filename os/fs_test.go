@@ -149,9 +149,10 @@ func TestFSTest(t *testing.T) {
 	if runtime.GOOS == goosWindows {
 		options.Constraints.FileModeMask = 0200
 		skipNames := map[string]struct{}{
-			"TestFSTest/osfs.FS#01/file.Seek/seek_unknown_start": {}, // Windows ignores invalid 'whence' values in Seek() calls.
-			"TestFSTest/osfs.FS/fs.Rename/same_directory":        {}, // Windows does not return an error for renaming a directory to itself.
-			"TestFSTest/osfs.FS/fs.Rename/newpath_is_directory":  {}, // Windows returns an access denied error when renaming a file to an existing directory.
+			"TestFSTest/osfs.FS#01/file.Seek/seek_unknown_start":                {}, // Windows ignores invalid 'whence' values in Seek() calls.
+			"TestFSTest/osfs.FS/fs.Rename/same_directory":                       {}, // Windows does not return an error for renaming a directory to itself.
+			"TestFSTest/osfs.FS/fs.Rename/newpath_is_directory":                 {}, // Windows returns an access denied error when renaming a file to an existing directory.
+			"TestFSTest/osfs.FS/fs.Chmod/change_symlink_target_permission_bits": {}, // Windows requires elevated permissions to create symlinks (sometimes).
 		}
 		options.ShouldSkip = func(facets fstest.Facets) bool {
 			_, skip := skipNames[facets.Name]
