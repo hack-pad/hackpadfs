@@ -32,7 +32,8 @@ test: test-deps
 	go test .  # Run library-level checks first, for more helpful build tag failure messages.
 	go test -race -coverprofile=cover.out ./...
 	if [[ "$$CI" != true || $$(uname -s) == Linux ]]; then \
-		GOOS=js GOARCH=wasm go test -cover ./... && \
+		set -ex; \
+		GOOS=js GOARCH=wasm go test -cover ./...; \
 		cd examples && go test -race ./...; \
 	fi
 	@if [[ "$$CI" == true && $$(uname -s) == Linux ]]; then \
