@@ -24,8 +24,10 @@ type FSOptions struct {
 	// However, in more niche file systems like a read-only FS, it is necessary to commit files to a normal FS, then copy them into a read-only store.
 	Setup TestSetup
 
-	// Contraints limits tests to a reduced set of assertions.
+	// Contraints limits tests to a reduced set of assertions. Avoid setting any of these options.
 	// For example, setting FileModeMask limits FileMode assertions on a file's Stat() result.
+	//
+	// NOTE: This MUST NOT be used lightly. Any custom constraints severely impairs the quality of a standardized file system.
 	Constraints Constraints
 
 	// ShouldSkip determines if the current test with features defined by 'facets' should be skipped.
@@ -67,7 +69,7 @@ type Constraints struct {
 }
 
 // Facets contains details for the current test.
-// Used in FSOptions.ShouldSkip() inspect and skip tests that should not apply.
+// Used in FSOptions.ShouldSkip() to inspect and skip tests that should not apply to this FS.
 type Facets struct {
 	// Name is the full name of the current test
 	Name string
