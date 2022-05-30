@@ -5,6 +5,7 @@ package os
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -122,6 +123,11 @@ func TestFSTest(t *testing.T) {
 		setUmask(oldmask)
 	})
 
+	var constraints fstest.Constraints
+	if runtime.GOOS == goosWindows {
+		constraints.FileModeMask = 0200
+	}
+
 	options := fstest.FSOptions{
 		Name: "osfs.FS",
 		TestFS: func(tb testing.TB) fstest.SetupFS {
@@ -144,6 +150,7 @@ func TestFSTest(t *testing.T) {
 			}
 			return subFS.(*FS)
 		},
+		Constraints: constraints,
 	}
 	fstest.FS(t, options)
 	fstest.File(t, options)

@@ -24,7 +24,9 @@ type FSOptions struct {
 	// However, in more niche file systems like a read-only FS, it is necessary to commit files to a normal FS, then copy them into a read-only store.
 	Setup TestSetup
 
-	// TODO add a "skip" func, enables checking a test matrix before running
+	// Contraints limits tests to a reduced set of assertions.
+	// For example, setting FileModeMask limits FileMode assertions on a file's Stat() result.
+	Constraints Constraints
 }
 
 // SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
@@ -50,6 +52,12 @@ type TestSetupFunc func(tb testing.TB) (SetupFS, func() hackpadfs.FS)
 // FS implements TestSetup
 func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 	return fn(tb)
+}
+
+// Contraints limits tests to a reduced set of assertions
+type Constraints struct {
+	// FileModeMask disables mode checks on the specified bits. Defaults to checking all bits (0).
+	FileModeMask hackpadfs.FileMode
 }
 
 func setupOptions(options *FSOptions) error {
@@ -124,66 +132,68 @@ func tbRun(tb testing.TB, name string, subtest func(tb testing.TB)) {
 	}
 }
 
-type subtaskFunc func(tb testing.TB, setup TestSetup)
-
-type tbSubtask struct {
-	Name string
-	Task subtaskFunc
+type tbSubtaskRunner struct {
+	tb      testing.TB
+	options FSOptions
 }
 
-func newSubtask(name string, task subtaskFunc) *tbSubtask {
-	return &tbSubtask{Name: name, Task: task}
+func newSubtaskRunner(tb testing.TB, options FSOptions) *tbSubtaskRunner {
+	return &tbSubtaskRunner{tb, options}
 }
 
-func (task *tbSubtask) Run(tb testing.TB, options FSOptions) {
-	tbRun(tb, task.Name, func(tb testing.TB) {
+type subtaskFunc func(tb testing.TB, options FSOptions)
+
+func (r *tbSubtaskRunner) Run(name string, subtask subtaskFunc) {
+	tbRun(r.tb, name, func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
-		task.Task(tb, options.Setup)
+		subtask(tb, r.options)
 	})
 }
 
 func runFS(tb testing.TB, options FSOptions) {
-	newSubtask("base fs.Create", TestBaseCreate).Run(tb, options)
-	newSubtask("base fs.Mkdir", TestBaseMkdir).Run(tb, options)
-	newSubtask("base fs.Chmod", TestBaseChmod).Run(tb, options)
-	newSubtask("base fs.Chtimes", TestBaseChtimes).Run(tb, options)
+	runner := newSubtaskRunner(tb, options)
+	runner.Run("base fs.Create", TestBaseCreate)
+	runner.Run("base fs.Mkdir", TestBaseMkdir)
+	runner.Run("base fs.Chmod", TestBaseChmod)
+	runner.Run("base fs.Chtimes", TestBaseChtimes)
 
-	newSubtask("fs.Create", TestCreate).Run(tb, options)
-	newSubtask("fs.Mkdir", TestMkdir).Run(tb, options)
-	newSubtask("fs.MkdirAll", TestMkdirAll).Run(tb, options)
-	newSubtask("fs.Open", TestOpen).Run(tb, options)
-	newSubtask("fs.OpenFile", TestOpenFile).Run(tb, options)
-	newSubtask("fs.ReadFile", TestReadFile).Run(tb, options)
-	newSubtask("fs.Remove", TestRemove).Run(tb, options)
-	newSubtask("fs.RemoveAll", TestRemoveAll).Run(tb, options)
-	newSubtask("fs.Rename", TestRename).Run(tb, options)
-	newSubtask("fs.Stat", TestStat).Run(tb, options)
-	newSubtask("fs.Chmod", TestChmod).Run(tb, options)
-	newSubtask("fs.Chtimes", TestChtimes).Run(tb, options)
+	runner.Run("fs.Create", TestCreate)
+	runner.Run("fs.Mkdir", TestMkdir)
+	runner.Run("fs.MkdirAll", TestMkdirAll)
+	runner.Run("fs.Open", TestOpen)
+	runner.Run("fs.OpenFile", TestOpenFile)
+	runner.Run("fs.ReadFile", TestReadFile)
+	runner.Run("fs.Remove", TestRemove)
+	runner.Run("fs.RemoveAll", TestRemoveAll)
+	runner.Run("fs.Rename", TestRename)
+	runner.Run("fs.Stat", TestStat)
+	runner.Run("fs.Chmod", TestChmod)
+	runner.Run("fs.Chtimes", TestChtimes)
 	// TODO Symlink
 
-	newSubtask("fs_concurrent.Create", TestConcurrentCreate).Run(tb, options)
-	newSubtask("fs_concurrent.OpenFileCreate", TestConcurrentOpenFileCreate).Run(tb, options)
-	newSubtask("fs_concurrent.Mkdir", TestConcurrentMkdir).Run(tb, options)
-	newSubtask("fs_concurrent.MkdirAll", TestConcurrentMkdirAll).Run(tb, options)
-	newSubtask("fs_concurrent.Remove", TestConcurrentRemove).Run(tb, options)
+	runner.Run("fs_concurrent.Create", TestConcurrentCreate)
+	runner.Run("fs_concurrent.OpenFileCreate", TestConcurrentOpenFileCreate)
+	runner.Run("fs_concurrent.Mkdir", TestConcurrentMkdir)
+	runner.Run("fs_concurrent.MkdirAll", TestConcurrentMkdirAll)
+	runner.Run("fs_concurrent.Remove", TestConcurrentRemove)
 }
 
 func runFile(tb testing.TB, options FSOptions) {
-	newSubtask("base file.Close", TestFileClose).Run(tb, options)
+	runner := newSubtaskRunner(tb, options)
+	runner.Run("base file.Close", TestFileClose)
 
-	newSubtask("file.Read", TestFileRead).Run(tb, options)
-	newSubtask("file.ReadAt", TestFileReadAt).Run(tb, options)
-	newSubtask("file.Seek", TestFileSeek).Run(tb, options)
-	newSubtask("file.Write", TestFileWrite).Run(tb, options)
-	newSubtask("file.WriteAt", TestFileWriteAt).Run(tb, options)
-	newSubtask("file.ReadDir", TestFileReadDir).Run(tb, options)
-	newSubtask("file.Stat", TestFileStat).Run(tb, options)
-	newSubtask("file.Sync", TestFileSync).Run(tb, options)
-	newSubtask("file.Truncate", TestFileTruncate).Run(tb, options)
+	runner.Run("file.Read", TestFileRead)
+	runner.Run("file.ReadAt", TestFileReadAt)
+	runner.Run("file.Seek", TestFileSeek)
+	runner.Run("file.Write", TestFileWrite)
+	runner.Run("file.WriteAt", TestFileWriteAt)
+	runner.Run("file.ReadDir", TestFileReadDir)
+	runner.Run("file.Stat", TestFileStat)
+	runner.Run("file.Sync", TestFileSync)
+	runner.Run("file.Truncate", TestFileTruncate)
 
-	newSubtask("file_concurrent.Read", TestConcurrentFileRead).Run(tb, options)
-	newSubtask("file_concurrent.Write", TestConcurrentFileWrite).Run(tb, options)
-	newSubtask("file_concurrent.Stat", TestConcurrentFileStat).Run(tb, options)
+	runner.Run("file_concurrent.Read", TestConcurrentFileRead)
+	runner.Run("file_concurrent.Write", TestConcurrentFileWrite)
+	runner.Run("file_concurrent.Stat", TestConcurrentFileStat)
 }

@@ -94,18 +94,23 @@ func (fs *FS) getVolumeName(goos string) string {
 
 // wrapRelPathErr restores path names to the caller's path names, without the root path prefix
 func (fs *FS) wrapRelPathErr(err error) error {
+	rootedPath, rootedErr := fs.rootedPath("", ".")
+	if rootedErr != nil {
+		panic(rootedErr)
+	}
+	separator := string(filepath.Separator)
 	switch e := err.(type) {
 	case *hackpadfs.PathError:
 		errCopy := *e
-		errCopy.Path = strings.TrimPrefix(errCopy.Path, path.Join("/", fs.root))
-		errCopy.Path = strings.TrimPrefix(errCopy.Path, "/")
+		errCopy.Path = strings.TrimPrefix(errCopy.Path, rootedPath)
+		errCopy.Path = strings.TrimPrefix(errCopy.Path, separator)
 		err = &errCopy
 	case *os.LinkError:
 		errCopy := &hackpadfs.LinkError{Op: e.Op, Old: e.Old, New: e.New, Err: e.Err}
-		errCopy.Old = strings.TrimPrefix(errCopy.Old, path.Join("/", fs.root))
-		errCopy.Old = strings.TrimPrefix(errCopy.Old, "/")
-		errCopy.New = strings.TrimPrefix(errCopy.New, path.Join("/", fs.root))
-		errCopy.New = strings.TrimPrefix(errCopy.New, "/")
+		errCopy.Old = strings.TrimPrefix(errCopy.Old, rootedPath)
+		errCopy.Old = strings.TrimPrefix(errCopy.Old, separator)
+		errCopy.New = strings.TrimPrefix(errCopy.New, rootedPath)
+		errCopy.New = strings.TrimPrefix(errCopy.New, separator)
 		err = errCopy
 	}
 	return err

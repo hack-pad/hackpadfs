@@ -15,19 +15,24 @@ type fsEntry struct {
 }
 
 // tryAssertEqualFS asserts that actual is equal to the file info records in expected. If actual doesn't support ReadDir, the assertion is skipped.
-func tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, actual hackpadfs.FS) {
+func (o FSOptions) tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, actual hackpadfs.FS) {
 	tb.Helper()
 	fs, ok := actual.(hackpadfs.ReadDirFS)
 	if !ok {
 		return
 	}
 
+	for path, entry := range expected {
+		entry.Mode = entry.Mode & o.Constraints.FileModeMask
+		expected[path] = entry
+	}
+
 	entries := make(map[string]fsEntry)
-	walkFSEntries(tb, fs, entries, "")
+	o.walkFSEntries(tb, fs, entries, "")
 	assert.Subset(tb, expected, entries)
 }
 
-func walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsEntry, dir string) {
+func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsEntry, dir string) {
 	tb.Helper()
 	if dir == "" {
 		dir = "."
@@ -45,6 +50,7 @@ func walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsE
 				size = info.Size()
 			}
 		}
+		mode = mode & o.Constraints.FileModeMask
 
 		name := entry.Name()
 		assert.Equal(tb, true, hackpadfs.ValidPath(name))
@@ -58,7 +64,25 @@ func walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsE
 		}
 
 		if isDir {
-			walkFSEntries(tb, fs, entries, filePath)
+			o.walkFSEntries(tb, fs, entries, filePath)
 		}
 	}
+}
+
+func (o FSOptions) assertEqualQuickInfo(tb testing.TB, a, b quickInfo) bool {
+	tb.Helper()
+	a.Mode = a.Mode & o.Constraints.FileModeMask
+	b.Mode = b.Mode & o.Constraints.FileModeMask
+	return assert.Equal(tb, a, b)
+}
+
+func (o FSOptions) assertEqualQuickInfos(tb testing.TB, a, b []quickInfo) bool {
+	tb.Helper()
+	for i := range a {
+		a[i].Mode = a[i].Mode & o.Constraints.FileModeMask
+	}
+	for i := range b {
+		b[i].Mode = b[i].Mode & o.Constraints.FileModeMask
+	}
+	return assert.Equal(tb, a, b)
 }
