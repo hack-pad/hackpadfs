@@ -189,6 +189,9 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 	}
 
 	tbRun(tb, "seek unknown start", func(tb testing.TB) {
+		if o.Constraints.InvalidSeekWhenceUndefined {
+			tb.Skip("Invalid 'whence' value in Seek() is left as undefined behavior")
+		}
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
@@ -344,6 +347,7 @@ func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byt
 		buf := make([]byte, len(fileContents))
 		_, _ = f.Read(buf)
 		assert.Equal(tb, fileContents, string(buf))
+		assert.NoError(tb, f.Close())
 	})
 
 	tbRun(tb, "write-truncate-write-read", func(tb testing.TB) {
@@ -371,6 +375,7 @@ func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byt
 		buf := make([]byte, len(fileContents))
 		_, _ = f.Read(buf)
 		assert.Equal(tb, fileContents, string(buf))
+		assert.NoError(tb, f.Close())
 	})
 }
 

@@ -126,6 +126,7 @@ func TestFSTest(t *testing.T) {
 	var constraints fstest.Constraints
 	if runtime.GOOS == goosWindows {
 		constraints.FileModeMask = 0200
+		constraints.InvalidSeekWhenceUndefined = true
 	}
 
 	options := fstest.FSOptions{
