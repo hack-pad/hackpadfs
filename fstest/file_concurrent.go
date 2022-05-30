@@ -8,9 +8,9 @@ import (
 	"github.com/hack-pad/hackpadfs/internal/assert"
 )
 
-func TestConcurrentFileRead(tb testing.TB, setup TestSetup) {
-	tbRun(tb, "same file path", func(tb testing.TB) {
-		setupFS, commit := setup.FS(tb)
+func TestConcurrentFileRead(tb testing.TB, o FSOptions) {
+	o.tbRun(tb, "same file path", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
 			_, err := hackpadfs.WriteFile(f, []byte("hello world"))
@@ -31,8 +31,8 @@ func TestConcurrentFileRead(tb testing.TB, setup TestSetup) {
 		})
 	})
 
-	tbRun(tb, "different file paths", func(tb testing.TB) {
-		setupFS, commit := setup.FS(tb)
+	o.tbRun(tb, "different file paths", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
 		const fileCount = 10
 		for i := 0; i < fileCount; i++ {
 			f, err := hackpadfs.Create(setupFS, fmt.Sprintf("foo-%d", i))
@@ -57,9 +57,9 @@ func TestConcurrentFileRead(tb testing.TB, setup TestSetup) {
 	})
 }
 
-func TestConcurrentFileWrite(tb testing.TB, setup TestSetup) {
-	tbRun(tb, "same file path", func(tb testing.TB) {
-		setupFS, commit := setup.FS(tb)
+func TestConcurrentFileWrite(tb testing.TB, o FSOptions) {
+	o.tbRun(tb, "same file path", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, f.Close())
@@ -79,8 +79,8 @@ func TestConcurrentFileWrite(tb testing.TB, setup TestSetup) {
 		})
 	})
 
-	tbRun(tb, "different file paths", func(tb testing.TB) {
-		setupFS, commit := setup.FS(tb)
+	o.tbRun(tb, "different file paths", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
 		const fileCount = 10
 		for i := 0; i < fileCount; i++ {
 			f, err := hackpadfs.Create(setupFS, fmt.Sprintf("foo-%d", i))
@@ -104,8 +104,8 @@ func TestConcurrentFileWrite(tb testing.TB, setup TestSetup) {
 	})
 }
 
-func TestConcurrentFileStat(tb testing.TB, setup TestSetup) {
-	setupFS, commit := setup.FS(tb)
+func TestConcurrentFileStat(tb testing.TB, o FSOptions) {
+	setupFS, commit := o.Setup.FS(tb)
 	f, err := hackpadfs.Create(setupFS, "foo")
 	if assert.NoError(tb, err) {
 		assert.NoError(tb, f.Close())

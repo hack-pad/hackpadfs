@@ -31,9 +31,12 @@ test-deps:
 test: test-deps
 	go test .  # Run library-level checks first, for more helpful build tag failure messages.
 	go test -race -coverprofile=cover.out ./...
-	GOOS=js GOARCH=wasm go test -cover ./...
-	cd examples && go test -race ./...
-	@if [[ "$$CI" == true ]]; then \
+	if [[ "$$CI" != true || $$(uname -s) == Linux ]]; then \
+		set -ex; \
+		GOOS=js GOARCH=wasm go test -cover ./...; \
+		cd examples && go test -race ./...; \
+	fi
+	@if [[ "$$CI" == true && $$(uname -s) == Linux ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github; \
 	fi
