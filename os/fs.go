@@ -105,19 +105,25 @@ func (fs *FS) wrapRelPathErr(err error) error {
 	if rootedErr != nil {
 		panic(rootedErr)
 	}
-	separator := string(filepath.Separator)
+	const (
+		separator = string(filepath.Separator)
+		slash     = "/"
+	)
 	switch e := err.(type) {
 	case *hackpadfs.PathError:
 		errCopy := *e
 		errCopy.Path = strings.TrimPrefix(errCopy.Path, rootedPath)
-		errCopy.Path = strings.TrimPrefix(errCopy.Path, separator)
+		errCopy.Path = strings.ReplaceAll(errCopy.Path, separator, slash)
+		errCopy.Path = strings.TrimPrefix(errCopy.Path, slash)
 		err = &errCopy
 	case *os.LinkError:
 		errCopy := &hackpadfs.LinkError{Op: e.Op, Old: e.Old, New: e.New, Err: e.Err}
 		errCopy.Old = strings.TrimPrefix(errCopy.Old, rootedPath)
-		errCopy.Old = strings.TrimPrefix(errCopy.Old, separator)
+		errCopy.Old = strings.ReplaceAll(errCopy.Old, separator, slash)
+		errCopy.Old = strings.TrimPrefix(errCopy.Old, slash)
 		errCopy.New = strings.TrimPrefix(errCopy.New, rootedPath)
-		errCopy.New = strings.TrimPrefix(errCopy.New, separator)
+		errCopy.New = strings.ReplaceAll(errCopy.New, separator, slash)
+		errCopy.New = strings.TrimPrefix(errCopy.New, slash)
 		err = errCopy
 	}
 	return err
