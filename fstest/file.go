@@ -592,6 +592,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		f := readDirFile(tb, file)
 		entries, err := f.ReadDir(100000000)
 		assert.NoError(tb, err)
+		assert.NoError(tb, file.Close())
 		o.assertSubsetQuickInfos(tb,
 			[]quickInfo{{Name: "bar", Mode: hackpadfs.ModeDir | 0700, IsDir: true}},
 			asQuickDirInfos(tb, entries),
