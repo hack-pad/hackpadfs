@@ -786,7 +786,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 		fs := renameFS(tb, commit())
 		err := fs.Rename("foo", "foo")
 
-		if assert.Error(tb, err) {
+		if !o.Constraints.RenameToSelfNoOp && assert.Error(tb, err) {
 			assert.ErrorIs(tb, hackpadfs.ErrExist, err)
 			switch err := err.(type) {
 			case *hackpadfs.LinkError:

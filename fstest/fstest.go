@@ -54,12 +54,14 @@ func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 	return fn(tb)
 }
 
-// Contraints limits tests to a reduced set of assertions
+// Contraints limits tests to a reduced set of assertions due to non-standard behavior. Avoid setting any of these.
 type Constraints struct {
 	// FileModeMask disables mode checks on the specified bits. Defaults to checking all bits (0).
 	FileModeMask hackpadfs.FileMode
 	// InvalidSeekWhenceUndefined is true when the behavior of Seek() with an invalid 'whence' is not defined. Windows seems to be the only candidate where no error occurs.
 	InvalidSeekWhenceUndefined bool
+	// RenameToSelfNoOp is true when renaming a file to an identical path should be a no-op, instead of an error.
+	RenameToSelfNoOp bool
 }
 
 func setupOptions(options *FSOptions) error {
