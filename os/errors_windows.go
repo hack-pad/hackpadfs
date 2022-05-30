@@ -37,10 +37,13 @@ func (fs *FS) mapNonStandardError(err error) error {
 	// Values from https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
 	const (
 		ERROR_NEGATIVE_SEEK = syscall.Errno(0x83)
+		ERROR_DIR_NOT_EMPTY = syscall.Errno(0x91)
 	)
 	switch errno {
 	case ERROR_NEGATIVE_SEEK:
 		return &mappedErr{hackpadfs.ErrInvalid, errno}
+	case ERROR_DIR_NOT_EMPTY:
+		return &mappedErr{hackpadfs.ErrNotEmpty, errno}
 	default:
 		return err
 	}
