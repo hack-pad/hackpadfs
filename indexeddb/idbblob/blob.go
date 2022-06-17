@@ -86,7 +86,7 @@ func (b *Blob) Bytes() []byte {
 	jsBuf := b.jsValue.Load().(js.Value)
 	buf := make([]byte, jsBuf.Length())
 	js.CopyBytesToGo(buf, jsBuf)
-	b.bytes.Store(buf)
+	b.bytes.Store(blob.NewBytes(buf))
 	return buf
 }
 
