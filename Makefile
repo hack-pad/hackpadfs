@@ -38,5 +38,5 @@ test: test-deps
 	fi
 	@if [[ "$$CI" == true && $$(uname -s) == Linux ]]; then \
 		set -ex; \
-		goveralls -coverprofile=cover.out -service=github; \
+		goveralls -coverprofile=cover.out -service=github || true; \
 	fi
