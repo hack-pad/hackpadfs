@@ -67,6 +67,9 @@ func (fs *FS) getVolumeName(goos string) string {
 //   * The path does not match fs's volume name set by SubVolume().
 //   * The path does not share fs's root path set by Sub().
 func (fs *FS) FromOSPath(osPath string) (string, error) {
+	if !filepath.IsAbs(osPath) {
+		return "", &hackpadfs.PathError{Op: osPathOp, Path: osPath, Err: hackpadfs.ErrInvalid}
+	}
 	return fs.fromOSPath(runtime.GOOS, filepath.Separator, filepath.VolumeName, osPathOp, osPath)
 }
 
