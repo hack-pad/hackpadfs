@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -56,39 +55,6 @@ func (fs *FS) Sub(dir string) (hackpadfs.FS, error) {
 		root:       path.Join(fs.root, dir),
 		volumeName: fs.volumeName,
 	}, nil
-}
-
-func (fs *FS) rootedPath(op, name string) (string, *hackpadfs.PathError) {
-	return fs.rootedPathGOOS(runtime.GOOS, filepath.Separator, op, name)
-}
-
-func (fs *FS) rootedPathGOOS(goos string, separator rune, op, name string) (string, *hackpadfs.PathError) {
-	if !hackpadfs.ValidPath(name) {
-		return "", &hackpadfs.PathError{Op: op, Path: name, Err: hackpadfs.ErrInvalid}
-	}
-	name = path.Join("/", fs.root, name)
-	filePath := joinSepPath(string(separator), fs.getVolumeName(goos), fromSeparator(separator, name))
-	return filePath, nil
-}
-
-func joinSepPath(separator, elem1, elem2 string) string {
-	elem1 = strings.TrimRight(elem1, separator)
-	elem2 = strings.TrimLeft(elem2, separator)
-	return elem1 + separator + elem2
-}
-
-func fromSeparator(separator rune, path string) string {
-	if separator == '/' {
-		return path
-	}
-	return strings.ReplaceAll(path, "/", string(separator))
-}
-
-func (fs *FS) getVolumeName(goos string) string {
-	if goos == goosWindows && fs.volumeName == "" {
-		return `C:`
-	}
-	return fs.volumeName
 }
 
 // wrapErr wraps 'err' to improve consistency across various operating systems and file path separators
