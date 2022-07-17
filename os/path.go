@@ -9,9 +9,11 @@ import (
 	"github.com/hack-pad/hackpadfs"
 )
 
+const osPathOp = "ospath"
+
 // ToOSPath converts a valid 'io/fs' package path to the equivalent 'os' package path for this FS
 func (fs *FS) ToOSPath(fsPath string) (string, error) {
-	osPath, err := fs.toOSPath(runtime.GOOS, filepath.Separator, "ospath", fsPath)
+	osPath, err := fs.rootedPath(osPathOp, fsPath)
 	if err != nil { // handle typed err
 		return "", err
 	}
@@ -44,9 +46,54 @@ func fromSeparator(separator rune, path string) string {
 	return strings.ReplaceAll(path, "/", string(separator))
 }
 
+func toSeparator(separator rune, path string) string {
+	if separator == '/' {
+		return path
+	}
+	return strings.ReplaceAll(path, string(separator), "/")
+}
+
 func (fs *FS) getVolumeName(goos string) string {
 	if goos == goosWindows && fs.volumeName == "" {
 		return `C:`
 	}
 	return fs.volumeName
+}
+
+// FromOSPath converts an absolute 'os' package path to the valid equivalent 'io/fs' package path for this FS.
+//
+// Returns an error for any of the following conditions:
+//   * The path is not absolute.
+//   * The path does not match fs's volume name set by SubVolume().
+//   * The path does not share fs's root path set by Sub().
+func (fs *FS) FromOSPath(osPath string) (string, error) {
+	return fs.fromOSPath(runtime.GOOS, filepath.Separator, filepath.VolumeName, osPathOp, osPath)
+}
+
+func (fs *FS) fromOSPath(
+	goos string, separator rune, getVolumeName func(string) string,
+	op, osPath string,
+) (string, error) {
+	errInvalid := &hackpadfs.PathError{Op: op, Path: osPath, Err: hackpadfs.ErrInvalid}
+	fsVolumeName := fs.getVolumeName(goos)
+	if getVolumeName(osPath) != fsVolumeName {
+		return "", errInvalid
+	}
+
+	// remove volume name prefix
+	osPath = strings.TrimPrefix(osPath, fsVolumeName)
+	osPath = strings.TrimPrefix(osPath, string(separator))
+
+	// remove root fs path prefix
+	fsPath := toSeparator(separator, osPath)
+	if fs.root != "" && fsPath != fs.root && !strings.HasPrefix(fsPath, fs.root+"/") {
+		return "", errInvalid
+	}
+	fsPath = strings.TrimPrefix(fsPath, fs.root)
+	fsPath = strings.TrimPrefix(fsPath, "/")
+
+	if fsPath == "" {
+		fsPath = "."
+	}
+	return fsPath, nil
 }
