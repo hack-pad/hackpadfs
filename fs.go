@@ -128,14 +128,6 @@ func WalkDir(fs FS, root string, fn WalkDirFunc) error {
 	return gofs.WalkDir(fs, root, fn)
 }
 
-// Sub attempts to call an optimized fs.Sub() if available. Falls back to io/fs.Sub() otherwise.
-func Sub(fs FS, dir string) (FS, error) {
-	if fs, ok := fs.(SubFS); ok {
-		return fs.Sub(dir)
-	}
-	return gofs.Sub(fs, dir)
-}
-
 // OpenFile attempts to call fs.Open() or fs.OpenFile() if available. Fails with a not implemented error otherwise.
 func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
 	if flag == FlagReadOnly {
