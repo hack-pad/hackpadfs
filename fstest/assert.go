@@ -1,6 +1,7 @@
 package fstest
 
 import (
+	"errors"
 	"path"
 	"testing"
 
@@ -30,6 +31,13 @@ func (o FSOptions) tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, 
 	entries := make(map[string]fsEntry)
 	o.walkFSEntries(tb, fs, entries, "")
 	assert.Subset(tb, expected, entries)
+}
+
+func skipNotImplemented(tb testing.TB, err error) {
+	tb.Helper()
+	if errors.Is(err, hackpadfs.ErrNotImplemented) {
+		tb.Skip(err)
+	}
 }
 
 func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsEntry, dir string) {
