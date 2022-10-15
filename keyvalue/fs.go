@@ -262,6 +262,9 @@ func (fs *FS) Rename(oldname, newname string) error {
 		return err
 	}
 	if !oldInfo.IsDir() {
+		if oldname == newname {
+			return nil
+		}
 		contents, err := oldFile.fileData.Data()
 		if err != nil {
 			return err
