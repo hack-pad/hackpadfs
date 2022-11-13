@@ -195,6 +195,7 @@ func runFS(tb testing.TB, options FSOptions) {
 	runner.Run("fs.MkdirAll", TestMkdirAll)
 	runner.Run("fs.Open", TestOpen)
 	runner.Run("fs.OpenFile", TestOpenFile)
+	runner.Run("fs.ReadDir", TestReadDir)
 	runner.Run("fs.ReadFile", TestReadFile)
 	runner.Run("fs.Remove", TestRemove)
 	runner.Run("fs.RemoveAll", TestRemoveAll)

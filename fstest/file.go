@@ -642,6 +642,29 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 			{Name: "boo", Mode: hackpadfs.ModeDir | 0700, IsDir: true},
 		}, asQuickDirInfos(tb, entries))
 	})
+
+	o.tbRun(tb, "list on file", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
+		{
+			f, err := hackpadfs.Create(setupFS, "foo")
+			if assert.NoError(tb, err) {
+				assert.NoError(tb, f.Close())
+			}
+		}
+		fs := commit()
+		file, err := fs.Open("foo")
+		assert.NoError(tb, err)
+		f := readDirFile(tb, file)
+		tb.Cleanup(func() { assert.NoError(tb, f.Close()) })
+		entries, err := f.ReadDir(0)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.ErrorIs(tb, hackpadfs.ErrNotDir, err)
+			assert.Equal(tb, "fdopendir", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+		assert.Equal(tb, 0, len(entries))
+	})
 }
 
 func TestFileStat(tb testing.TB, o FSOptions) {
