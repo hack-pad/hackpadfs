@@ -334,7 +334,7 @@ func (f *file) Truncate(size int64) error {
 func (f *file) ReadDir(n int) ([]hackpadfs.DirEntry, error) {
 	dirNames, err := f.ReadDirNames()
 	if err != nil {
-		return nil, err
+		return nil, &hackpadfs.PathError{Op: "fdopendir", Path: f.path, Err: err}
 	}
 	start, end := f.offset, f.offset+int64(n)
 	if n <= 0 {
