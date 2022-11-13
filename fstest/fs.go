@@ -1216,7 +1216,6 @@ func TestReadDir(tb testing.TB, o FSOptions) {
 
 	o.tbRun(tb, "file is not a dir", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		const contents = "hello"
 		f, err := hackpadfs.Create(setupFS, "foo")
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, f.Close())
