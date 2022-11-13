@@ -1226,7 +1226,10 @@ func TestReadDir(tb testing.TB, o FSOptions) {
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.ErrorIs(tb, hackpadfs.ErrNotDir, err)
-			assert.Equal(tb, "fdopendir", err.Op)
+			assert.Contains(tb, []string{
+				"fdopendir",
+				"readdirent",
+			}, err.Op)
 			assert.Equal(tb, "foo", err.Path)
 		}
 	})
