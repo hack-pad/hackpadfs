@@ -1148,7 +1148,7 @@ func TestReadDir(tb testing.TB, o FSOptions) {
 
 	o.tbRun(tb, "exists", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		err := hackpadfs.MkdirAll(setupFS, "foo/bar", 0700)
+		err := hackpadfs.MkdirAll(setupFS, "foo/bar", 0777)
 		assert.NoError(tb, err)
 		f, err := hackpadfs.Create(setupFS, "foo/baz")
 		if assert.NoError(tb, err) {
@@ -1170,7 +1170,7 @@ func TestReadDir(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, err)
 			assert.Equal(tb, quickInfo{
 				Name:  "bar",
-				Mode:  hackpadfs.ModeDir | 0700,
+				Mode:  hackpadfs.ModeDir | 0777,
 				IsDir: true,
 			}, asQuickInfo(info))
 			assert.Equal(tb, true, dir[0].IsDir())
