@@ -1137,4 +1137,103 @@ func TestReadFile(tb testing.TB, o FSOptions) {
 	})
 }
 
+func TestReadDir(tb testing.TB, o FSOptions) {
+	readDirFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.ReadDirFS {
+		if fs, ok := fs.(hackpadfs.ReadDirFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a ReadDirFS")
+		return nil
+	}
+
+	o.tbRun(tb, "exists", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
+		err := hackpadfs.MkdirAll(setupFS, "foo/bar", 0777)
+		assert.NoError(tb, err)
+		f, err := hackpadfs.Create(setupFS, "foo/baz")
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
+		f, err = hackpadfs.Create(setupFS, "foo/biff")
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
+		fs := readDirFS(tb, commit())
+		dir, err := fs.ReadDir("foo")
+		assert.NoError(tb, err)
+		if assert.Equal(tb, 3, len(dir)) {
+			// entries should be sorted alphabetically
+
+			// dir entry 0
+			assert.Equal(tb, "bar", dir[0].Name())
+			info, err := dir[0].Info()
+			assert.NoError(tb, err)
+			assert.Equal(tb, quickInfo{
+				Name:  "bar",
+				Mode:  hackpadfs.ModeDir | 0777,
+				IsDir: true,
+			}, asQuickInfo(info))
+			assert.Equal(tb, true, dir[0].IsDir())
+			assert.Equal(tb, hackpadfs.ModeDir, dir[0].Type())
+
+			// dir entry 1
+			assert.Equal(tb, "baz", dir[1].Name())
+			info, err = dir[1].Info()
+			assert.NoError(tb, err)
+			assert.Equal(tb, quickInfo{
+				Name:  "baz",
+				Mode:  0666,
+				IsDir: false,
+			}, asQuickInfo(info))
+			assert.Equal(tb, false, dir[1].IsDir())
+			assert.Equal(tb, hackpadfs.FileMode(0), dir[1].Type())
+
+			// dir entry 2
+			assert.Equal(tb, "biff", dir[2].Name())
+			info, err = dir[2].Info()
+			assert.NoError(tb, err)
+			assert.Equal(tb, quickInfo{
+				Name:  "biff",
+				Mode:  0666,
+				IsDir: false,
+			}, asQuickInfo(info))
+			assert.Equal(tb, false, dir[2].IsDir())
+			assert.Equal(tb, hackpadfs.FileMode(0), dir[2].Type())
+		}
+	})
+
+	o.tbRun(tb, "not exists", func(tb testing.TB) {
+		_, commit := o.Setup.FS(tb)
+		fs := readDirFS(tb, commit())
+		_, err := fs.ReadDir("foo")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.ErrorIs(tb, hackpadfs.ErrNotExist, err)
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+	})
+
+	o.tbRun(tb, "file is not a dir", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
+		f, err := hackpadfs.Create(setupFS, "foo")
+		if assert.NoError(tb, err) {
+			assert.NoError(tb, f.Close())
+		}
+
+		fs := readDirFS(tb, commit())
+		_, err = fs.ReadDir("foo")
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.ErrorIs(tb, hackpadfs.ErrNotDir, err)
+			assert.Contains(tb, []string{
+				"fdopendir",  // macOS
+				"readdirent", // Linux
+				"readdir",    // Windows
+			}, err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+	})
+}
+
 // TODO Symlink
