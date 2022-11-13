@@ -40,6 +40,9 @@ func (f fileRecord) ModTime() time.Time       { return f.modTime }
 func (f fileRecord) Sys() interface{}         { return nil }
 
 func (f fileRecord) ReadDirNames() ([]string, error) {
+	if !f.mode.IsDir() {
+		return nil, hackpadfs.ErrNotDir
+	}
 	var names []string
 	prefix := f.path + "/"
 	isRoot := f.path == "."
