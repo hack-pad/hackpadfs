@@ -165,7 +165,7 @@ func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
 	}
 
 	err = catchErr(func() error {
-		b.JSValue().Call("set", FromBlob(src), destStart)
+		b.JSValue().Call("set", FromBlob(src).JSValue(), destStart)
 		return nil
 	})
 	if err != nil {
