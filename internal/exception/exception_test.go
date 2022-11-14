@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hack-pad/hackpadfs/internal/assert"
+	"github.com/hack-pad/hackpadfs/internal/jswrapper"
 )
 
 func TestCatch(t *testing.T) {
@@ -69,7 +70,7 @@ func TestCatch(t *testing.T) {
 func testJSErrValue() (value js.Value) {
 	defer func() {
 		recoverVal := recover()
-		value = recoverVal.(js.Wrapper).JSValue()
+		value = recoverVal.(jswrapper.Wrapper).JSValue()
 	}()
 	js.Global().Get("Function").New(`throw Exception("some error")`).Invoke()
 	panic("not a JS value. line above should do the panic")
