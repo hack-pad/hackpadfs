@@ -69,9 +69,9 @@ func TestCatch(t *testing.T) {
 func testJSErrValue() (value js.Value) {
 	defer func() {
 		recoverVal := recover()
-		value = recoverVal.(js.Wrapper).JSValue()
+		value = recoverVal.(js.Error).Value
 	}()
-	js.Global().Get("Function").New(`throw Exception("some error")`).Invoke()
+	js.Global().Get("Function").New(`throw new Error("some error")`).Invoke()
 	panic("not a JS value. line above should do the panic")
 }
 

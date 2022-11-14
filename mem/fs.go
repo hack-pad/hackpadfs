@@ -1,3 +1,4 @@
+// Package mem contains an in-memory FS.
 package mem
 
 import (

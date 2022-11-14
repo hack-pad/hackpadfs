@@ -1,3 +1,4 @@
+// Package cache contains a read-only cache file system.
 package cache
 
 import (

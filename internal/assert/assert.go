@@ -1,3 +1,4 @@
+// Package assert contains common assertions on builtin types.
 package assert
 
 import (

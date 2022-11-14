@@ -1,2 +1,4 @@
 github.com/hack-pad/go-indexeddb v0.1.0 h1:UzRAl6WiKxLJePkgi2uaQa9MMPWcjO29zI3pt9D+rNs=
 github.com/hack-pad/go-indexeddb v0.1.0/go.mod h1:NH8CaojufPNcKYDhy5JkjfyBXE/72oJPeiywlabN/lM=
+github.com/hack-pad/go-indexeddb v0.2.0 h1:QHDM6gLrtCJvHdHUK8UdibJu4xWQlIDs4+l8L65AUdA=
+github.com/hack-pad/go-indexeddb v0.2.0/go.mod h1:NH8CaojufPNcKYDhy5JkjfyBXE/72oJPeiywlabN/lM=

@@ -1,3 +1,4 @@
+// Package os implements all of the familiar behavior from the standard library using hackpadfs's interfaces.
 package os
 
 import (

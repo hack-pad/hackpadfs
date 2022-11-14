@@ -1,3 +1,4 @@
+// Package mount contains an implementation of hackpadfs.MountFS.
 package mount
 
 import (

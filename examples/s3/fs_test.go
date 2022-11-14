@@ -3,7 +3,6 @@ package s3
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -27,7 +26,7 @@ const (
 var minioClient *minio.Client
 
 func init() {
-	path, err := ioutil.TempDir("", "")
+	path, err := os.MkdirTemp("", "")
 	if err != nil {
 		panic(err)
 	}

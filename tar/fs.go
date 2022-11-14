@@ -1,3 +1,4 @@
+// Package tar contains a tar file based file system.
 package tar
 
 import (

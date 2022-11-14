@@ -1,3 +1,4 @@
+// Package hackpadfs defines many essential file and file system interfaces as well as helpers for use with the standard library's 'io/fs' package.
 package hackpadfs
 
 import (

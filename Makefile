@@ -1,5 +1,5 @@
 BROWSERTEST_VERSION = v0.3.5
-LINT_VERSION = 1.42.1
+LINT_VERSION = 1.50.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
 SHELL = bash
 
@@ -36,7 +36,7 @@ test: test-deps
 		GOOS=js GOARCH=wasm go test -cover ./...; \
 		cd examples && go test -race ./...; \
 	fi
-	@if [[ "$$CI" == true && $$(uname -s) == Linux ]]; then \
+	@if [[ "$$CI" == true && $$(uname -s) == Linux && "$$(go version)" == *go"$$COVERAGE_VERSION"* ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github || true; \
 	fi

@@ -1,3 +1,4 @@
+// Package fserrors contains error wrappers.
 package fserrors
 
 type messageError struct {

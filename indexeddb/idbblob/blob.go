@@ -1,6 +1,7 @@
 //go:build wasm
 // +build wasm
 
+// Package idbblob contains a JavaScript implementation of blob.Blob.
 package idbblob
 
 import (
@@ -10,6 +11,7 @@ import (
 	"syscall/js"
 
 	"github.com/hack-pad/hackpadfs/internal/exception"
+	"github.com/hack-pad/hackpadfs/internal/jswrapper"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
 )
 
@@ -59,15 +61,9 @@ func newBlob(buf js.Value) *Blob {
 	return b
 }
 
-// jsWrapper is implemented by types that are backed by a JavaScript value.
-type jsWrapper interface {
-	// JSValue returns a JavaScript value associated with an object.
-	JSValue() js.Value
-}
-
 // FromBlob creates a Blob from the given blob.Blob, either wrapping the JS value or copying the bytes if incompatible.
 func FromBlob(b blob.Blob) *Blob {
-	if b, ok := b.(jsWrapper); ok {
+	if b, ok := b.(jswrapper.Wrapper); ok {
 		return newBlob(b.JSValue())
 	}
 	buf := b.Bytes()
@@ -96,7 +92,7 @@ func (b *Blob) Bytes() []byte {
 	return buf
 }
 
-// JSValue implements JSWrapper
+// JSValue implements jswrapper.Wrapper
 func (b *Blob) JSValue() js.Value {
 	return b.jsValue.Load().(js.Value)
 }
@@ -170,7 +166,7 @@ func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
 	}
 
 	err = catchErr(func() error {
-		b.JSValue().Call("set", FromBlob(src), destStart)
+		b.JSValue().Call("set", FromBlob(src).JSValue(), destStart)
 		return nil
 	})
 	if err != nil {

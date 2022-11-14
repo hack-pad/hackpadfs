@@ -1,3 +1,4 @@
+// Package pathlock contains Mutex, which locks and unlocks using file paths as keys.
 package pathlock
 
 import "sync"

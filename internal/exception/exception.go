@@ -1,6 +1,7 @@
 //go:build wasm
 // +build wasm
 
+// Package exception contains exception handlers to make JavaScript interop easier.
 package exception
 
 import (
