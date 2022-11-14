@@ -1,5 +1,5 @@
 BROWSERTEST_VERSION = v0.3.5
-LINT_VERSION = 1.42.1
+LINT_VERSION = 1.50.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
 SHELL = bash
 
