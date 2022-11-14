@@ -21,15 +21,24 @@ jobs:
       matrix:
         platform: 
         - ubuntu-latest
-        - macos-latest
-        - windows-latest
+        go:
+        - 1.16
+        - 1.17
+        - 1.18
+        - 1.19
+        include:
+        - platform: macos-latest
+          go: 1.19
+        - platform: windows-latest
+          go: 1.19
     runs-on: ${{ matrix.platform }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.16
+        go-version: ${{ matrix.go }}
     - name: Test
       run: make test
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERAGE_VERSION: 1.19

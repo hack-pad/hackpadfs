@@ -36,7 +36,7 @@ test: test-deps
 		GOOS=js GOARCH=wasm go test -cover ./...; \
 		cd examples && go test -race ./...; \
 	fi
-	@if [[ "$$CI" == true && $$(uname -s) == Linux ]]; then \
+	@if [[ "$$CI" == true && $$(uname -s) == Linux && "$$(go version)" == *go"$$COVERAGE_VERSION"* ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github || true; \
 	fi
