@@ -1,3 +1,4 @@
+// Package mounttest contains mount.FS wrappers for more thorough testing.
 package mounttest
 
 import (

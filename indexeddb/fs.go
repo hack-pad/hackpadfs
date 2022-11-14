@@ -1,6 +1,7 @@
 //go:build wasm
 // +build wasm
 
+// Package indexeddb contains a WebAssembly compatible file system. Uses IndexedDB under the hood.
 package indexeddb
 
 import (

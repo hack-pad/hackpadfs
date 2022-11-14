@@ -1,3 +1,4 @@
+// Package blob defines a common data interchange type for keyvalue FS's.
 package blob
 
 // Blob is a binary blob of data that can support platform-optimized mutations for better performance.

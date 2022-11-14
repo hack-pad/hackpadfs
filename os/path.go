@@ -63,9 +63,9 @@ func (fs *FS) getVolumeName(goos string) string {
 // FromOSPath converts an absolute 'os' package path to the valid equivalent 'io/fs' package path for this FS.
 //
 // Returns an error for any of the following conditions:
-//   * The path is not absolute.
-//   * The path does not match fs's volume name set by SubVolume().
-//   * The path does not share fs's root path set by Sub().
+//   - The path is not absolute.
+//   - The path does not match fs's volume name set by SubVolume().
+//   - The path does not share fs's root path set by Sub().
 func (fs *FS) FromOSPath(osPath string) (string, error) {
 	if !filepath.IsAbs(osPath) {
 		return "", &hackpadfs.PathError{Op: osPathOp, Path: osPath, Err: hackpadfs.ErrInvalid}

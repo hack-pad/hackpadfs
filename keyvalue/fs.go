@@ -1,3 +1,4 @@
+// Package keyvalue contains a key-value based FS for easy, custom FS implementations.
 package keyvalue
 
 import (
