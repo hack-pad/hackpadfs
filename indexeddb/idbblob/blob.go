@@ -1,6 +1,7 @@
 //go:build wasm
 // +build wasm
 
+// Package idbblob contains a JavaScript implementation of blob.Blob.
 package idbblob
 
 import (
