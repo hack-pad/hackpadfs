@@ -59,15 +59,15 @@ func newBlob(buf js.Value) *Blob {
 	return b
 }
 
-// JSWrapper is implemented by types that are backed by a JavaScript value.
-type JSWrapper interface {
+// jsWrapper is implemented by types that are backed by a JavaScript value.
+type jsWrapper interface {
 	// JSValue returns a JavaScript value associated with an object.
 	JSValue() js.Value
 }
 
 // FromBlob creates a Blob from the given blob.Blob, either wrapping the JS value or copying the bytes if incompatible.
 func FromBlob(b blob.Blob) *Blob {
-	if b, ok := b.(JSWrapper); ok {
+	if b, ok := b.(jsWrapper); ok {
 		return newBlob(b.JSValue())
 	}
 	buf := b.Bytes()
