@@ -1,3 +1,4 @@
+// Package s3 contains an example S3 file system.
 package s3
 
 import (
