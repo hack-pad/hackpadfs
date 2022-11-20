@@ -365,8 +365,11 @@ func WriteFullFile(fs FS, name string, data []byte, perm FileMode) error {
 
 	f, err := OpenFile(fs, name, FlagWriteOnly|FlagCreate|FlagTruncate, perm)
 	if err == nil {
-		defer f.Close()
 		_, err = WriteFile(f, data)
+		closeErr := f.Close()
+		if err == nil {
+			err = closeErr
+		}
 	}
 	return err
 }
