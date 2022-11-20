@@ -1237,3 +1237,75 @@ func TestReadDir(tb testing.TB, o FSOptions) {
 }
 
 // TODO Symlink
+
+func TestWriteFile(tb testing.TB, o FSOptions) {
+	writeFileFS := func(tb testing.TB, fs hackpadfs.FS) hackpadfs.WriteFileFS {
+		if fs, ok := fs.(hackpadfs.WriteFileFS); ok {
+			return fs
+		}
+		tb.Skip("FS is not a WriteFileFS")
+		return nil
+	}
+
+	o.tbRun(tb, "not exists", func(tb testing.TB) {
+		_, commit := o.Setup.FS(tb)
+		fs := writeFileFS(tb, commit())
+		err := fs.WriteFile("foo", []byte("bar"), 0765)
+		assert.NoError(tb, err)
+
+		o.tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Size: 3, Mode: 0765},
+		}, fs)
+		contents, err := hackpadfs.ReadFile(fs, "foo")
+		assert.NoError(tb, err)
+		assert.Equal(tb, "bar", string(contents))
+	})
+
+	o.tbRun(tb, "file exists", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
+		const (
+			contents = "bar"
+			perm     = 0666
+		)
+		f, err := setupFS.OpenFile("foo", hackpadfs.FlagWriteOnly|hackpadfs.FlagCreate, perm)
+		if assert.NoError(tb, err) {
+			_, err := hackpadfs.WriteFile(f, []byte(contents))
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
+		}
+
+		fs := writeFileFS(tb, commit())
+		const (
+			newContents = "baz"
+			newPerm     = 0765
+		)
+		err = fs.WriteFile("foo", []byte(newContents), newPerm)
+		assert.NoError(tb, err)
+
+		o.tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Size: 3, Mode: perm}, // mode shouldn't change
+		}, fs)
+		buf, err := hackpadfs.ReadFile(fs, "foo")
+		assert.NoError(tb, err)
+		assert.Equal(tb, newContents, string(buf))
+	})
+
+	o.tbRun(tb, "dir exists", func(tb testing.TB) {
+		setupFS, commit := o.Setup.FS(tb)
+		err := setupFS.Mkdir("foo", 0700)
+		assert.NoError(tb, err)
+
+		fs := writeFileFS(tb, commit())
+		err = fs.WriteFile("foo", []byte("bar"), 0765)
+		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
+			err := err.(*hackpadfs.PathError)
+			assert.ErrorIs(tb, hackpadfs.ErrIsDir, err)
+			assert.Equal(tb, "open", err.Op)
+			assert.Equal(tb, "foo", err.Path)
+		}
+
+		o.tryAssertEqualFS(tb, map[string]fsEntry{
+			"foo": {Mode: 0700, IsDir: true},
+		}, fs)
+	})
+}

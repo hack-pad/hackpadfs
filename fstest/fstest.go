@@ -190,6 +190,8 @@ func runFS(tb testing.TB, options FSOptions) {
 	runner.Run("base fs.Chmod", TestBaseChmod)
 	runner.Run("base fs.Chtimes", TestBaseChtimes)
 
+	runner.Run("fs.Chmod", TestChmod)
+	runner.Run("fs.Chtimes", TestChtimes)
 	runner.Run("fs.Create", TestCreate)
 	runner.Run("fs.Mkdir", TestMkdir)
 	runner.Run("fs.MkdirAll", TestMkdirAll)
@@ -201,8 +203,7 @@ func runFS(tb testing.TB, options FSOptions) {
 	runner.Run("fs.RemoveAll", TestRemoveAll)
 	runner.Run("fs.Rename", TestRename)
 	runner.Run("fs.Stat", TestStat)
-	runner.Run("fs.Chmod", TestChmod)
-	runner.Run("fs.Chtimes", TestChtimes)
+	runner.Run("fs.WriteFile", TestWriteFile)
 	// TODO Symlink
 
 	runner.Run("fs_concurrent.Create", TestConcurrentCreate)

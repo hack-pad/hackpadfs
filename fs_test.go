@@ -107,3 +107,14 @@ func TestChmod(t *testing.T) {
 	err = hackpadfs.Chmod(fs, "foo", 0)
 	assert.NoError(t, err)
 }
+
+func TestWriteFullFile(t *testing.T) {
+	t.Parallel()
+
+	fs := makeSimplerFS(t)
+	err := hackpadfs.WriteFullFile(fs, "foo", []byte("bar"), 0756)
+	assert.NoError(t, err)
+	contents, err := hackpadfs.ReadFile(fs, "foo")
+	assert.NoError(t, err)
+	assert.Equal(t, "bar", string(contents))
+}
