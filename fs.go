@@ -103,6 +103,12 @@ type ReadFileFS interface {
 	ReadFile(name string) ([]byte, error)
 }
 
+// WriteFileFS is an FS that can write an entire file in one pass. Should match the behavior of os.WriteFile().
+type WriteFileFS interface {
+	FS
+	WriteFile(name string, data []byte, perm FileMode) error
+}
+
 // SymlinkFS is an FS that can create symlinks. Should match the behavior of os.Symlink().
 type SymlinkFS interface {
 	FS
@@ -345,6 +351,24 @@ func ReadFile(fs FS, name string) ([]byte, error) {
 		return ReadFile(fs.Mount(name))
 	}
 	return gofs.ReadFile(fs, name)
+}
+
+// WriteFullFile attempts to call an optimized fs.WriteFile(), falls back to fs.OpenFile() with file.Write().
+func WriteFullFile(fs FS, name string, data []byte, perm FileMode) error {
+	if fs, ok := fs.(WriteFileFS); ok {
+		return fs.WriteFile(name, data, perm)
+	}
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(name)
+		return WriteFullFile(mountFS, subPath, data, perm)
+	}
+
+	f, err := OpenFile(fs, name, FlagWriteOnly|FlagCreate|FlagTruncate, perm)
+	if err == nil {
+		defer f.Close()
+		_, err = WriteFile(f, data)
+	}
+	return err
 }
 
 // Symlink creates a symlink. Fails with a not implemented error if it's not a SymlinkFS.

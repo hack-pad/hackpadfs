@@ -241,6 +241,16 @@ func (fs *FS) ReadFile(name string) ([]byte, error) {
 	return contents, fs.wrapErr(err)
 }
 
+// WriteFile implements hackpadfs.WriteFileFS
+func (fs *FS) WriteFile(name string, data []byte, perm hackpadfs.FileMode) error {
+	name, pathErr := fs.rootedPath("writefile", name)
+	if pathErr != nil {
+		return pathErr
+	}
+	err := os.WriteFile(name, data, perm)
+	return fs.wrapErr(err)
+}
+
 // Symlink implements hackpadfs.SymlinkFS
 func (fs *FS) Symlink(oldname, newname string) error {
 	oldname, pathErr := fs.rootedPath("symlink", oldname)
