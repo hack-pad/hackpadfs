@@ -118,3 +118,18 @@ func TestWriteFullFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "bar", string(contents))
 }
+
+func TestRemoveAll(t *testing.T) {
+	t.Parallel()
+
+	fs := makeSimplerFS(t)
+	assert.NoError(t, hackpadfs.MkdirAll(fs, "foo/bar", 0700))
+	err := hackpadfs.WriteFullFile(fs, "foo/bar/baz", nil, 0700)
+	assert.NoError(t, err)
+
+	err = hackpadfs.RemoveAll(fs, "foo")
+	assert.NoError(t, err)
+	dir, err := hackpadfs.ReadDir(fs, ".")
+	assert.NoError(t, err)
+	assert.Zero(t, dir)
+}

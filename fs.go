@@ -4,6 +4,7 @@ package hackpadfs
 import (
 	"errors"
 	gofs "io/fs"
+	gopath "path"
 	"time"
 )
 
@@ -187,7 +188,7 @@ func MkdirAll(fs FS, path string, perm FileMode) error {
 		mountFS, subPath := fs.Mount(path)
 		return MkdirAll(mountFS, subPath, perm)
 	}
-	if !gofs.ValidPath(path) {
+	if !ValidPath(path) {
 		return &PathError{Op: "mkdirall", Path: path, Err: ErrInvalid}
 	}
 	for i := 0; i < len(path); i++ {
@@ -222,7 +223,7 @@ func Remove(fs FS, name string) error {
 	return &PathError{Op: "remove", Path: name, Err: ErrNotImplemented}
 }
 
-// RemoveAll removes files recursively with fs.RemoveAll(). Fails with a not implemented error if it's not a RemoveAllFS.
+// RemoveAll attempts to call an optimized fs.RemoveAll(), falls back to removing files and directories recursively.
 func RemoveAll(fs FS, path string) error {
 	if fs, ok := fs.(RemoveAllFS); ok {
 		return fs.RemoveAll(path)
@@ -230,7 +231,31 @@ func RemoveAll(fs FS, path string) error {
 	if fs, ok := fs.(MountFS); ok {
 		return RemoveAll(fs.Mount(path))
 	}
-	return &PathError{Op: "removeall", Path: path, Err: ErrNotImplemented}
+
+	if !ValidPath(path) {
+		return &PathError{Op: "removeall", Path: path, Err: ErrInvalid}
+	}
+	return removeAll(fs, path)
+}
+
+func removeAll(fs FS, path string) error {
+	if err := Remove(fs, path); err == nil || errors.Is(err, ErrNotExist) {
+		return nil
+	}
+	dir, err := ReadDir(fs, path)
+	if err != nil {
+		return &PathError{Op: "removeall", Path: path, Err: err}
+	}
+	for _, dirEntry := range dir {
+		err := removeAll(fs, gopath.Join(path, dirEntry.Name()))
+		if err != nil {
+			return &PathError{Op: "removeall", Path: path, Err: err}
+		}
+	}
+	if err := Remove(fs, path); err == nil || errors.Is(err, ErrNotExist) {
+		return nil
+	}
+	return nil
 }
 
 // Rename moves files with fs.Rename(). Fails with a not implemented error if it's not a RenameFS.
