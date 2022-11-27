@@ -256,3 +256,10 @@ func runFile(tb testing.TB, options FSOptions) {
 	runner.Run("file_concurrent.Write", TestConcurrentFileWrite)
 	runner.Run("file_concurrent.Stat", TestConcurrentFileStat)
 }
+
+func skipNotImplemented(tb testing.TB, err error) {
+	tb.Helper()
+	if errors.Is(err, hackpadfs.ErrNotImplemented) {
+		tb.Skip(err)
+	}
+}

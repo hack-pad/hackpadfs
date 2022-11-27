@@ -11,12 +11,7 @@ import (
 func TestConcurrentFileRead(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		f, err := hackpadfs.Create(setupFS, "foo")
-		if assert.NoError(tb, err) {
-			_, err := hackpadfs.WriteFile(f, []byte("hello world"))
-			assert.NoError(tb, err)
-			assert.NoError(tb, f.Close())
-		}
+		assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte("hello world"), 0666))
 		fs := commit()
 		concurrentTasks(0, func(i int) {
 			f, err := fs.Open("foo")
@@ -35,12 +30,7 @@ func TestConcurrentFileRead(tb testing.TB, o FSOptions) {
 		setupFS, commit := o.Setup.FS(tb)
 		const fileCount = 10
 		for i := 0; i < fileCount; i++ {
-			f, err := hackpadfs.Create(setupFS, fmt.Sprintf("foo-%d", i))
-			if assert.NoError(tb, err) {
-				_, err := hackpadfs.WriteFile(f, []byte("hello world"))
-				assert.NoError(tb, err)
-				assert.NoError(tb, f.Close())
-			}
+			assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, fmt.Sprintf("foo-%d", i), []byte("hello world"), 0666))
 		}
 		fs := commit()
 		concurrentTasks(fileCount, func(i int) {
@@ -64,18 +54,15 @@ func TestConcurrentFileWrite(tb testing.TB, o FSOptions) {
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, f.Close())
 		}
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not a OpenFileFS")
-		}
+		fs := commit()
 		concurrentTasks(0, func(i int) {
-			f, err := fs.OpenFile("foo", hackpadfs.FlagWriteOnly, 0)
-			if f, ok := f.(hackpadfs.ReadWriterFile); assert.NoError(tb, err) && ok {
-				n, err := f.Write([]byte("hello"))
-				assert.Equal(tb, 5, n)
-				assert.NoError(tb, err)
-				assert.NoError(tb, f.Close())
-			}
+			f, err := hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagWriteOnly, 0)
+			skipNotImplemented(tb, err)
+			n, err := hackpadfs.WriteFile(f, []byte("hello"))
+			skipNotImplemented(tb, err)
+			assert.Equal(tb, 5, n)
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
 		})
 	})
 
@@ -88,18 +75,15 @@ func TestConcurrentFileWrite(tb testing.TB, o FSOptions) {
 				assert.NoError(tb, f.Close())
 			}
 		}
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not a OpenFileFS")
-		}
+		fs := commit()
 		concurrentTasks(fileCount, func(i int) {
-			f, err := fs.OpenFile(fmt.Sprintf("foo-%d", i), hackpadfs.FlagWriteOnly, 0)
-			if f, ok := f.(hackpadfs.ReadWriterFile); assert.NoError(tb, err) && ok {
-				n, err := f.Write([]byte("hello"))
-				assert.Equal(tb, 5, n)
-				assert.NoError(tb, err)
-				assert.NoError(tb, f.Close())
-			}
+			f, err := hackpadfs.OpenFile(fs, fmt.Sprintf("foo-%d", i), hackpadfs.FlagWriteOnly, 0)
+			skipNotImplemented(tb, err)
+			n, err := hackpadfs.WriteFile(f, []byte("hello"))
+			skipNotImplemented(tb, err)
+			assert.Equal(tb, 5, n)
+			assert.NoError(tb, err)
+			assert.NoError(tb, f.Close())
 		})
 	})
 }
