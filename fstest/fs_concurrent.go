@@ -16,9 +16,12 @@ func concurrentTasks(count int, task func(int)) {
 	if count == 0 {
 		count = defaultConcurrentTasks
 	}
+
+	task(0) // run once outside goroutine to allow "not implemented" Skips
+
 	var wg sync.WaitGroup
-	wg.Add(count)
-	for i := 0; i < count; i++ {
+	wg.Add(count - 1)
+	for i := 1; i < count; i++ {
 		go func(i int) {
 			defer wg.Done()
 			task(i)
