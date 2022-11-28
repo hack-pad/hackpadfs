@@ -37,7 +37,7 @@ type FSOptions struct {
 	// NOTE: This MUST NOT be used lightly. Any custom skips severely impairs the quality of a standardized file system.
 	ShouldSkip func(facets Facets) bool
 
-	skippedTests sync.Map // type: Facets -> struct{}
+	skippedTests *sync.Map // type: Facets -> struct{}
 }
 
 // SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
@@ -79,6 +79,7 @@ type Facets struct {
 }
 
 func setupOptions(options *FSOptions) error {
+	options.skippedTests = new(sync.Map)
 	if options.Name == "" {
 		return errors.New("FS test name is required")
 	}
@@ -136,7 +137,10 @@ func (o FSOptions) tbRunInner(tb testing.TB, name string, subtest func(tb testin
 	subtest(tb)
 }
 
+// TestData reports metadata from test runs.
 type TestData struct {
+	// Skips includes details for every skipped test.
+	// Useful for verifying compliance with fstest's standard checks. For instance, os.FS checks (almost) none are skipped.
 	Skips []Facets
 }
 
