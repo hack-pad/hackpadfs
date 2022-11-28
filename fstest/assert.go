@@ -1,6 +1,7 @@
 package fstest
 
 import (
+	"errors"
 	"path"
 	"testing"
 
@@ -17,27 +18,25 @@ type fsEntry struct {
 // tryAssertEqualFS asserts that actual is equal to the file info records in expected. If actual doesn't support ReadDir, the assertion is skipped.
 func (o FSOptions) tryAssertEqualFS(tb testing.TB, expected map[string]fsEntry, actual hackpadfs.FS) {
 	tb.Helper()
-	fs, ok := actual.(hackpadfs.ReadDirFS)
-	if !ok {
-		return
-	}
-
 	for path, entry := range expected {
 		entry.Mode &= o.Constraints.FileModeMask
 		expected[path] = entry
 	}
 
 	entries := make(map[string]fsEntry)
-	o.walkFSEntries(tb, fs, entries, "")
+	o.walkFSEntries(tb, actual, entries, "")
 	assert.Subset(tb, expected, entries)
 }
 
-func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.ReadDirFS, entries map[string]fsEntry, dir string) {
+func (o FSOptions) walkFSEntries(tb testing.TB, fs hackpadfs.FS, entries map[string]fsEntry, dir string) {
 	tb.Helper()
 	if dir == "" {
 		dir = "."
 	}
-	dirs, err := fs.ReadDir(dir)
+	dirs, err := hackpadfs.ReadDir(fs, dir)
+	if errors.Is(err, hackpadfs.ErrNotImplemented) {
+		return
+	}
 	assert.NoError(tb, err)
 	for _, entry := range dirs {
 		isDir := entry.IsDir()

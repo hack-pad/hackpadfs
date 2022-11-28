@@ -90,12 +90,7 @@ func TestFileRead(tb testing.TB, o FSOptions) {
 func TestFileReadAt(tb testing.TB, o FSOptions) {
 	const fileContents = "hello world"
 	setupFS, commit := o.Setup.FS(tb)
-	f, err := hackpadfs.Create(setupFS, "foo")
-	if assert.NoError(tb, err) {
-		_, err = hackpadfs.WriteFile(f, []byte(fileContents))
-		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
-	}
+	assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte(fileContents), 0666))
 	fs := commit()
 
 	for _, tc := range []struct {
@@ -152,13 +147,10 @@ func TestFileReadAt(tb testing.TB, o FSOptions) {
 			defer func() {
 				assert.NoError(tb, file.Close())
 			}()
-			f, ok := file.(hackpadfs.ReaderAtFile)
-			if !ok {
-				tb.Skip("File is not a ReaderAtFile")
-			}
 
 			buf := make([]byte, tc.bufSize)
-			n, err := f.ReadAt(buf, tc.off)
+			n, err := hackpadfs.ReadAtFile(file, buf, tc.off)
+			skipNotImplemented(tb, err)
 			if n == tc.bufSize && err == io.EOF {
 				err = nil
 			}
@@ -180,14 +172,6 @@ func TestFileReadAt(tb testing.TB, o FSOptions) {
 func TestFileSeek(tb testing.TB, o FSOptions) {
 	const fileContents = "hello world"
 
-	seekFile := func(tb testing.TB, file hackpadfs.File) hackpadfs.SeekerFile {
-		if file, ok := file.(hackpadfs.SeekerFile); ok {
-			return file
-		}
-		tb.Skip("File is not a SeekerFile")
-		return nil
-	}
-
 	o.tbRun(tb, "seek unknown start", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
@@ -200,15 +184,15 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		fs := commit()
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
-		f := seekFile(tb, file)
-		_, err = f.Seek(0, -1)
+		_, err = hackpadfs.SeekFile(file, 0, -1)
+		skipNotImplemented(tb, err)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "seek", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 		}
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 
 	o.tbRun(tb, "seek negative offset", func(tb testing.TB) {
@@ -223,15 +207,15 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		fs := commit()
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
-		f := seekFile(tb, file)
-		_, err = f.Seek(-1, io.SeekStart)
+		_, err = hackpadfs.SeekFile(file, -1, io.SeekStart)
+		skipNotImplemented(tb, err)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(tb, "seek", err.Op)
 			assert.Equal(tb, "foo", err.Path)
 			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
 		}
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 
 	o.tbRun(tb, "seek start", func(tb testing.TB) {
@@ -246,43 +230,38 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		fs := commit()
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
-		f := seekFile(tb, file)
 		const offset = 1
-		off, err := f.Seek(offset, io.SeekStart)
+		off, err := hackpadfs.SeekFile(file, offset, io.SeekStart)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
 		assert.Equal(tb, int64(offset), off)
 		buf := make([]byte, len(fileContents))
-		n, err := f.Read(buf)
+		n, err := file.Read(buf)
 		assert.Equal(tb, true, err == nil || err == io.EOF)
 		assert.Equal(tb, "ello world", string(buf[:n]))
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 
 	o.tbRun(tb, "seek current", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		file, err := hackpadfs.Create(setupFS, "foo")
-		if assert.NoError(tb, err) {
-			_, err = hackpadfs.WriteFile(file, []byte(fileContents))
-			assert.NoError(tb, err)
-			assert.NoError(tb, file.Close())
-		}
+		assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte(fileContents), 0666))
 
 		fs := commit()
-		file, err = fs.Open("foo")
+		file, err := fs.Open("foo")
 		assert.NoError(tb, err)
-		f := seekFile(tb, file)
 		const firstSeekOff = 5
 		const offset = -1
-		_, err = f.Seek(firstSeekOff, io.SeekStart) // get close to middle
+		_, err = hackpadfs.SeekFile(file, firstSeekOff, io.SeekStart) // get close to middle
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		off, err := f.Seek(offset, io.SeekCurrent)
+		off, err := hackpadfs.SeekFile(file, offset, io.SeekCurrent)
 		assert.NoError(tb, err)
 		assert.Equal(tb, int64(firstSeekOff+offset), off)
 		buf := make([]byte, len(fileContents))
-		n, err := f.Read(buf)
+		n, err := file.Read(buf)
 		assert.Equal(tb, true, err == nil || err == io.EOF)
 		assert.Equal(tb, "o world", string(buf[:n]))
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 
 	o.tbRun(tb, "seek end", func(tb testing.TB) {
@@ -297,26 +276,24 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		fs := commit()
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
-		f := seekFile(tb, file)
 		const offset = -1
-		off, err := f.Seek(offset, io.SeekEnd)
+		off, err := hackpadfs.SeekFile(file, offset, io.SeekEnd)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
 		assert.Equal(tb, int64(len(fileContents)+offset), off)
 		buf := make([]byte, len(fileContents))
-		n, err := f.Read(buf)
+		n, err := file.Read(buf)
 		assert.Equal(tb, true, err == nil || err == io.EOF)
 		assert.Equal(tb, "d", string(buf[:n]))
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 }
 
 func TestFileWrite(tb testing.TB, o FSOptions) {
 	testFileWrite(tb, o, func(file hackpadfs.File, b []byte) (int, error) {
-		if file, ok := file.(hackpadfs.ReadWriterFile); ok {
-			return file.Write(b)
-		}
-		tb.Skip("File is not a ReadWriterFile")
-		return 0, nil
+		n, err := hackpadfs.WriteFile(file, b)
+		skipNotImplemented(tb, err)
+		return n, err
 	})
 }
 
@@ -329,11 +306,9 @@ func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byt
 			assert.NoError(tb, f.Close())
 		}
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		f, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
+		fs := commit()
+		f, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
 		n, err := writer(f, []byte(fileContents))
 		assert.Equal(tb, len(fileContents), n)
@@ -350,41 +325,26 @@ func testFileWrite(tb testing.TB, o FSOptions, writer func(hackpadfs.File, []byt
 	o.tbRun(tb, "write-truncate-write-read", func(tb testing.TB) {
 		const fileContents = "hello world"
 		setupFS, commit := o.Setup.FS(tb)
-		f, err := hackpadfs.Create(setupFS, "foo")
-		if assert.NoError(tb, err) {
-			_, err := writer(f, []byte(fileContents))
-			assert.NoError(tb, err)
-			assert.NoError(tb, f.Close())
-		}
+		assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte(fileContents), 0666))
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		f, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite|hackpadfs.FlagTruncate, 0)
+		fs := commit()
+		file, err := hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite|hackpadfs.FlagTruncate, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		n, err := writer(f, []byte(fileContents))
+		n, err := writer(file, []byte(fileContents))
 		assert.Equal(tb, len(fileContents), n)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
-		f, err = fs.Open("foo")
+		assert.NoError(tb, file.Close())
+		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
 		buf := make([]byte, len(fileContents))
-		_, _ = f.Read(buf)
+		_, _ = file.Read(buf)
 		assert.Equal(tb, fileContents, string(buf))
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 }
 
 func TestFileWriteAt(tb testing.TB, o FSOptions) {
-	writeAtFile := func(tb testing.TB, file hackpadfs.File) hackpadfs.WriterAtFile {
-		if file, ok := file.(hackpadfs.WriterAtFile); ok {
-			return file
-		}
-		tb.Skip("File is not a WriterAtFile")
-		return nil
-	}
-
 	o.tbRun(tb, "negative offset", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
 		file, err := hackpadfs.Create(setupFS, "foo")
@@ -392,17 +352,14 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
+		fs := commit()
+		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		f := writeAtFile(tb, file)
-		n, err := f.WriteAt([]byte("hello"), -1)
+		n, err := hackpadfs.WriteAtFile(file, []byte("hello"), -1)
 		assert.Equal(tb, 0, n)
 		assert.Error(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
@@ -419,18 +376,15 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
+		fs := commit()
+		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
-		n, err := f.WriteAt([]byte(fileContents), 0)
+		n, err := hackpadfs.WriteAtFile(file, []byte(fileContents), 0)
 		assert.Equal(tb, len(fileContents), n)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
@@ -447,22 +401,20 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
+		fs := commit()
+		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
 		const newContents = "hi"
 		const offset = 5
-		_, err = f.WriteAt([]byte(fileContents), 0)
+		_, err = hackpadfs.WriteAtFile(file, []byte(fileContents), 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		n, err := f.WriteAt([]byte(newContents), offset)
+		n, err := hackpadfs.WriteAtFile(file, []byte(newContents), offset)
 		assert.Equal(tb, len(newContents), n)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
@@ -479,19 +431,16 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, file.Close())
 		}
 
-		fs, ok := commit().(hackpadfs.OpenFileFS)
-		if !ok {
-			tb.Skip("FS is not an OpenFileFS")
-		}
-		file, err = fs.OpenFile("foo", hackpadfs.FlagReadWrite, 0)
+		fs := commit()
+		file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		f := writeAtFile(tb, file)
 		const fileContents = "hello world"
 		const offset = 5
-		n, err := f.WriteAt([]byte(fileContents), offset)
+		n, err := hackpadfs.WriteAtFile(file, []byte(fileContents), offset)
 		assert.Equal(tb, len(fileContents), n)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
@@ -503,23 +452,15 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 }
 
 func TestFileReadDir(tb testing.TB, o FSOptions) {
-	readDirFile := func(tb testing.TB, file hackpadfs.File) hackpadfs.DirReaderFile {
-		if file, ok := file.(hackpadfs.DirReaderFile); ok {
-			return file
-		}
-		tb.Skip("File is not a DirReaderFile")
-		return nil
-	}
-
 	o.tbRun(tb, "list initial root", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
 		file, err := fs.Open(".")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		_, err = f.ReadDir(0)
+		_, err = hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 	})
 
 	o.tbRun(tb, "list root", func(tb testing.TB) {
@@ -528,15 +469,15 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, file.Close())
 		}
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
+		assert.NoError(tb, setupFS.Mkdir("bar", 0700))
 
 		fs := commit()
 		file, err = fs.Open(".")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		entries, err := f.ReadDir(0)
+		entries, err := hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 		sort.SliceStable(entries, func(a, b int) bool {
 			return entries[a].Name() < entries[b].Name()
 		})
@@ -552,24 +493,25 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, file.Close())
 		}
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
+		assert.NoError(tb, setupFS.Mkdir("bar", 0700))
 
 		fs := commit()
 		file, err = fs.Open(".")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		entries1, err := f.ReadDir(1)
+		entries1, err := hackpadfs.ReadDirFile(file, 1)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		entries2, err := f.ReadDir(1)
+		entries2, err := hackpadfs.ReadDirFile(file, 1)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		file, err = fs.Open(".")
 		assert.NoError(tb, err)
-		f = readDirFile(tb, file)
-		entriesAll, err := f.ReadDir(0)
+		entriesAll, err := hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 
 		var entries []hackpadfs.DirEntry
 		entries = append(entries, entries1...)
@@ -584,13 +526,13 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 
 	o.tbRun(tb, "readdir high N", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "bar", 0700))
+		assert.NoError(tb, setupFS.Mkdir("bar", 0700))
 
 		fs := commit()
 		file, err := fs.Open(".")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		entries, err := f.ReadDir(100000000)
+		entries, err := hackpadfs.ReadDirFile(file, 100000000)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
 		assert.NoError(tb, file.Close())
 		o.assertSubsetQuickInfos(tb,
@@ -601,21 +543,21 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 
 	o.tbRun(tb, "list empty subdirectory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		assert.NoError(tb, setupFS.Mkdir("foo", 0700))
 
 		fs := commit()
 		file, err := fs.Open("foo")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		entries, err := f.ReadDir(0)
+		entries, err := hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 		assert.Equal(tb, 0, len(entries))
 	})
 
 	o.tbRun(tb, "list subdirectory", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo", 0700))
+		assert.NoError(tb, setupFS.Mkdir("foo", 0700))
 		file, err := hackpadfs.Create(setupFS, "foo/bar")
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, file.Close())
@@ -624,15 +566,15 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		if assert.NoError(tb, err) {
 			assert.NoError(tb, file.Close())
 		}
-		assert.NoError(tb, hackpadfs.Mkdir(setupFS, "foo/boo", 0700))
+		assert.NoError(tb, setupFS.Mkdir("foo/boo", 0700))
 
 		fs := commit()
 		file, err = fs.Open("foo")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		entries, err := f.ReadDir(0)
+		entries, err := hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		assert.NoError(tb, err)
-		assert.NoError(tb, f.Close())
+		assert.NoError(tb, file.Close())
 		sort.SliceStable(entries, func(a, b int) bool {
 			return entries[a].Name() < entries[b].Name()
 		})
@@ -654,9 +596,9 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 		fs := commit()
 		file, err := fs.Open("foo")
 		assert.NoError(tb, err)
-		f := readDirFile(tb, file)
-		tb.Cleanup(func() { assert.NoError(tb, f.Close()) })
-		entries, err := f.ReadDir(0)
+		tb.Cleanup(func() { assert.NoError(tb, file.Close()) })
+		entries, err := hackpadfs.ReadDirFile(file, 0)
+		skipNotImplemented(tb, err)
 		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.ErrorIs(tb, hackpadfs.ErrNotDir, err)
@@ -703,14 +645,13 @@ func TestFileSync(tb testing.TB, o FSOptions) {
 		file, err = fs.Open("foo")
 	}
 	assert.NoError(tb, err)
-	f, ok := file.(hackpadfs.SyncerFile)
-	if !ok {
-		tb.Skip("File is not a SyncerFile")
-	}
-	_, err = hackpadfs.WriteFile(f, []byte("hello"))
+	_, err = hackpadfs.WriteFile(file, []byte("hello"))
+	skipNotImplemented(tb, err)
 	assert.NoError(tb, err)
-	assert.NoError(tb, f.Sync())
-	assert.NoError(tb, f.Close())
+	err = hackpadfs.SyncFile(file)
+	skipNotImplemented(tb, err)
+	assert.NoError(tb, err)
+	assert.NoError(tb, file.Close())
 }
 
 func TestFileTruncate(tb testing.TB, o FSOptions) {
@@ -747,18 +688,13 @@ func TestFileTruncate(tb testing.TB, o FSOptions) {
 				assert.NoError(tb, file.Close())
 			}
 
-			fs, ok := commit().(hackpadfs.OpenFileFS)
-			if !ok {
-				tb.Skip("FS is not an OpenFileFS")
-			}
+			fs := commit()
 			file, err = hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite, 0)
+			skipNotImplemented(tb, err)
 			assert.NoError(tb, err)
-			f, ok := file.(hackpadfs.TruncaterFile)
-			if !ok {
-				tb.Skip("File is not a TruncaterFile")
-			}
-			err = f.Truncate(tc.size)
-			assert.NoError(tb, f.Close())
+			err = hackpadfs.TruncateFile(file, tc.size)
+			skipNotImplemented(tb, err)
+			assert.NoError(tb, file.Close())
 			if tc.expectErrKind != nil {
 				assert.Error(tb, err)
 				if assert.IsType(tb, &hackpadfs.PathError{}, err) {

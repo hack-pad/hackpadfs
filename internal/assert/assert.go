@@ -185,45 +185,45 @@ func Prefix(tb testing.TB, expected, actual string) bool {
 	return true
 }
 
-// Subset asserts expected is a subset of actual
-func Subset(tb testing.TB, expected, actual interface{}) bool {
+// Subset asserts 'sub' is a subset of 'super'
+func Subset(tb testing.TB, sub, super interface{}) bool {
 	tb.Helper()
 
-	if !subset(tb, expected, actual) {
-		tb.Errorf("Expected is not a subset of actual:\nExpected: %#v\nActual:   %#v", expected, actual)
+	if !subset(tb, sub, super) {
+		tb.Errorf("Sub is not a subset of Super:\nSub:   %#v\nSuper: %#v", sub, super)
 		return false
 	}
 	return true
 }
 
-func subset(tb testing.TB, expected, actual interface{}) bool {
-	expectedVal := reflect.ValueOf(expected)
-	actualVal := reflect.ValueOf(actual)
-	if expectedVal.Kind() != actualVal.Kind() {
+func subset(tb testing.TB, sub, super interface{}) bool {
+	subVal := reflect.ValueOf(sub)
+	superVal := reflect.ValueOf(super)
+	if subVal.Kind() != superVal.Kind() {
 		return false
 	}
-	switch expectedVal.Kind() {
+	switch subVal.Kind() {
 	case reflect.Map:
-		iter := expectedVal.MapRange()
+		iter := subVal.MapRange()
 		for iter.Next() {
-			expectedKey, expectedValue := iter.Key(), iter.Value()
-			actualValue := actualVal.MapIndex(expectedKey)
-			if actualValue == (reflect.Value{}) || !reflect.DeepEqual(expectedValue.Interface(), actualValue.Interface()) {
+			subKey, subValue := iter.Key(), iter.Value()
+			superValue := superVal.MapIndex(subKey)
+			if superValue == (reflect.Value{}) || !reflect.DeepEqual(subValue.Interface(), superValue.Interface()) {
 				return false
 			}
 		}
 		return true
 	case reflect.Slice:
-		length := expectedVal.Len()
+		length := subVal.Len()
 		for i := 0; i < length; i++ {
-			expectedValue := expectedVal.Index(i).Interface()
-			if !contains(tb, actual, expectedValue) {
+			subValue := subVal.Index(i).Interface()
+			if !contains(tb, super, subValue) {
 				return false
 			}
 		}
 		return true
 	default:
-		tb.Errorf("Invalid subset type. Expected slice, got: %T", expected)
+		tb.Errorf("Invalid subset type. Expected slice, got: %T", sub)
 		return false
 	}
 }

@@ -3,6 +3,7 @@ package fstest
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/hack-pad/hackpadfs"
@@ -35,6 +36,8 @@ type FSOptions struct {
 	//
 	// NOTE: This MUST NOT be used lightly. Any custom skips severely impairs the quality of a standardized file system.
 	ShouldSkip func(facets Facets) bool
+
+	skippedTests *sync.Map // type: Facets -> struct{}
 }
 
 // SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
@@ -76,6 +79,7 @@ type Facets struct {
 }
 
 func setupOptions(options *FSOptions) error {
+	options.skippedTests = new(sync.Map)
 	if options.Name == "" {
 		return errors.New("FS test name is required")
 	}
@@ -98,64 +102,89 @@ func setupOptions(options *FSOptions) error {
 }
 
 func (o FSOptions) tbRun(tb testing.TB, name string, subtest func(tb testing.TB)) {
+	tb.Helper()
 	switch tb := tb.(type) {
 	case *testing.T:
 		tb.Run(name, func(t *testing.T) {
 			t.Helper()
-			facets := Facets{
-				Name: t.Name(),
-			}
-			if o.ShouldSkip(facets) {
-				t.Skipf("FSOption.ShouldSkip: %#v", facets)
-			}
-			subtest(t)
+			o.tbRunInner(t, name, subtest)
 		})
 	case *testing.B:
 		tb.Run(name, func(b *testing.B) {
 			b.Helper()
-			facets := Facets{
-				Name: b.Name(),
-			}
-			if o.ShouldSkip(facets) {
-				b.Skipf("FSOption.ShouldSkip: %#v", facets)
-			}
-			subtest(b)
+			o.tbRunInner(b, name, subtest)
 		})
 	default:
 		tb.Errorf("Unrecognized testing type: %T", tb)
 	}
 }
 
+func (o FSOptions) tbRunInner(tb testing.TB, name string, subtest func(tb testing.TB)) {
+	tb.Helper()
+	facets := Facets{
+		Name: tb.Name(),
+	}
+
+	defer func() {
+		if tb.Skipped() {
+			o.skippedTests.Store(facets, struct{}{})
+		}
+	}()
+
+	if o.ShouldSkip(facets) {
+		tb.Skipf("FSOption.ShouldSkip: %#v", facets)
+	}
+	subtest(tb)
+}
+
+// TestData reports metadata from test runs.
+type TestData struct {
+	// Skips includes details for every skipped test.
+	// Useful for verifying compliance with fstest's standard checks. For instance, os.FS checks (almost) none are skipped.
+	Skips []Facets
+}
+
+func (o FSOptions) generateTestData() TestData {
+	var data TestData
+	o.skippedTests.Range(func(key, _ interface{}) bool {
+		data.Skips = append(data.Skips, key.(Facets))
+		return true
+	})
+	return data
+}
+
 // FS runs file system tests. All FS interfaces from hackpadfs.*FS are tested.
-func FS(tb testing.TB, options FSOptions) {
+func FS(tb testing.TB, options FSOptions) TestData {
 	tb.Helper()
 
 	err := setupOptions(&options)
 	if err != nil {
 		tb.Fatal(err)
-		return
+		return TestData{}
 	}
 	options.tbRun(tb, options.Name+"_FS", func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFS(tb, options)
 	})
+	return options.generateTestData()
 }
 
 // File runs file tests. All File interfaces from hackpadfs.*File are tested.
-func File(tb testing.TB, options FSOptions) {
+func File(tb testing.TB, options FSOptions) TestData {
 	tb.Helper()
 
 	err := setupOptions(&options)
 	if err != nil {
 		tb.Fatal(err)
-		return
+		return TestData{}
 	}
 	options.tbRun(tb, options.Name+"_File", func(tb testing.TB) {
 		tbParallel(tb)
 		tb.Helper()
 		runFile(tb, options)
 	})
+	return options.generateTestData()
 }
 
 func tbParallel(tb testing.TB) {
@@ -230,4 +259,11 @@ func runFile(tb testing.TB, options FSOptions) {
 	runner.Run("file_concurrent.Read", TestConcurrentFileRead)
 	runner.Run("file_concurrent.Write", TestConcurrentFileWrite)
 	runner.Run("file_concurrent.Stat", TestConcurrentFileStat)
+}
+
+func skipNotImplemented(tb testing.TB, err error) {
+	tb.Helper()
+	if errors.Is(err, hackpadfs.ErrNotImplemented) {
+		tb.Skip(err)
+	}
 }

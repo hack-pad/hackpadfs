@@ -239,9 +239,21 @@ func RemoveAll(fs FS, path string) error {
 }
 
 func removeAll(fs FS, path string) error {
-	if err := Remove(fs, path); err == nil || errors.Is(err, ErrNotExist) {
-		return nil
+	info, err := Stat(fs, path)
+	if err != nil {
+		if errors.Is(err, ErrNotExist) {
+			err = nil
+		}
+		return err
 	}
+	if !info.IsDir() {
+		err := Remove(fs, path)
+		if errors.Is(err, ErrNotExist) {
+			err = nil
+		}
+		return err
+	}
+
 	dir, err := ReadDir(fs, path)
 	if err != nil {
 		return &PathError{Op: "removeall", Path: path, Err: err}
