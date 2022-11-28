@@ -113,12 +113,6 @@ type ChtimeserFile interface {
 	Chtimes(atime time.Time, mtime time.Time) error
 }
 
-// WrappedFile is a File that can unwrap to return the original file along with its sub path.
-type WrappedFile interface {
-	File
-	Unwrap() (file File, subPath string)
-}
-
 // ChmodFile runs file.Chmod() is available, fails with a not implemented error otherwise.
 func ChmodFile(file File, mode FileMode) error {
 	if file, ok := file.(ChmoderFile); ok {
