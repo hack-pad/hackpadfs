@@ -9,6 +9,7 @@ import (
 )
 
 func TestStripErrPathPrefix(t *testing.T) {
+	t.Parallel()
 	someError := errors.New("some error")
 	for _, tc := range []struct {
 		err          error
@@ -69,7 +70,9 @@ func TestStripErrPathPrefix(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc // enable parallel sub-tests
 		t.Run(fmt.Sprint(tc.err, tc.name, tc.mountSubPath), func(t *testing.T) {
+			t.Parallel()
 			err := stripErrPathPrefix(tc.err, tc.name, tc.mountSubPath)
 			assert.Equal(t, tc.expectErr, err)
 		})
