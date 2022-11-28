@@ -155,11 +155,13 @@ func TestFileReadAt(tb testing.TB, o FSOptions) {
 				err = nil
 			}
 			if tc.expectErr != nil {
-				if err, ok := err.(*hackpadfs.PathError); ok {
-					assert.Equal(tb, "readat", err.Op)
-					assert.Equal(tb, "foo", err.Path)
+				if _, ok := err.(*hackpadfs.PathError); ok {
+					o.assertEqualPathErr(tb, &hackpadfs.PathError{
+						Op:   "readat",
+						Path: "foo",
+						Err:  tc.expectErr,
+					}, err)
 				}
-				assert.ErrorIs(tb, tc.expectErr, err)
 				return
 			}
 			assert.NoError(tb, err)
@@ -186,12 +188,11 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, err)
 		_, err = hackpadfs.SeekFile(file, 0, -1)
 		skipNotImplemented(tb, err)
-		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
-			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, "seek", err.Op)
-			assert.Equal(tb, "foo", err.Path)
-			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
-		}
+		o.assertEqualPathErr(tb, &hackpadfs.PathError{
+			Op:   "seek",
+			Path: "foo",
+			Err:  hackpadfs.ErrInvalid,
+		}, err)
 		assert.NoError(tb, file.Close())
 	})
 
@@ -209,12 +210,11 @@ func TestFileSeek(tb testing.TB, o FSOptions) {
 		assert.NoError(tb, err)
 		_, err = hackpadfs.SeekFile(file, -1, io.SeekStart)
 		skipNotImplemented(tb, err)
-		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
-			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, "seek", err.Op)
-			assert.Equal(tb, "foo", err.Path)
-			assert.ErrorIs(tb, hackpadfs.ErrInvalid, err)
-		}
+		o.assertEqualPathErr(tb, &hackpadfs.PathError{
+			Op:   "seek",
+			Path: "foo",
+			Err:  hackpadfs.ErrInvalid,
+		}, err)
 		assert.NoError(tb, file.Close())
 	})
 
@@ -361,12 +361,11 @@ func TestFileWriteAt(tb testing.TB, o FSOptions) {
 		assert.Error(tb, err)
 		assert.NoError(tb, file.Close())
 
-		if assert.IsType(tb, &hackpadfs.PathError{}, err) {
-			err := err.(*hackpadfs.PathError)
-			assert.Equal(tb, "writeat", err.Op)
-			assert.Equal(tb, "foo", err.Path)
-			assert.Equal(tb, "negative offset", err.Err.Error())
-		}
+		o.assertEqualPathErr(tb, &hackpadfs.PathError{
+			Op:   "writeat",
+			Path: "foo",
+			Err:  errors.New("negative offset"),
+		}, err)
 	})
 
 	o.tbRun(tb, "no offset", func(tb testing.TB) {
@@ -607,7 +606,7 @@ func TestFileReadDir(tb testing.TB, o FSOptions) {
 				"readdirent", // Linux
 				"readdir",    // Windows
 			}, err.Op)
-			assert.Equal(tb, "foo", err.Path)
+			o.assertEqualErrPath(tb, "foo", err.Path)
 		}
 		assert.Equal(tb, 0, len(entries))
 	})
@@ -697,12 +696,11 @@ func TestFileTruncate(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, file.Close())
 			if tc.expectErrKind != nil {
 				assert.Error(tb, err)
-				if assert.IsType(tb, &hackpadfs.PathError{}, err) {
-					err := err.(*hackpadfs.PathError)
-					assert.Equal(tb, "truncate", err.Op)
-					assert.Equal(tb, "foo", err.Path)
-					assert.ErrorIs(tb, tc.expectErrKind, err.Err)
-				}
+				o.assertEqualPathErr(tb, &hackpadfs.PathError{
+					Op:   "truncate",
+					Path: "foo",
+					Err:  tc.expectErrKind,
+				}, err)
 				o.tryAssertEqualFS(tb, map[string]fsEntry{
 					"foo": {Mode: 0666, Size: int64(len(fileContents))},
 				}, fs)

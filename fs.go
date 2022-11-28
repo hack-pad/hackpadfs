@@ -136,12 +136,17 @@ func WalkDir(fs FS, root string, fn WalkDirFunc) error {
 	return gofs.WalkDir(fs, root, fn)
 }
 
-// Sub attempts to call an optimized fs.Sub() if available. Falls back to io/fs.Sub() otherwise.
+// Sub attempts to call an optimized fs.Sub() if available. Falls back to a small MountFS implementation.
 func Sub(fs FS, dir string) (FS, error) {
 	if fs, ok := fs.(SubFS); ok {
 		return fs.Sub(dir)
 	}
-	return gofs.Sub(fs, dir)
+	if fs, ok := fs.(MountFS); ok {
+		mountFS, subPath := fs.Mount(dir)
+		fs, err := Sub(mountFS, subPath)
+		return fs, stripErrPathPrefix(err, dir, subPath)
+	}
+	return newSubFS(fs, dir)
 }
 
 // OpenFile attempts to call fs.Open() or fs.OpenFile() if available. Fails with a not implemented error otherwise.
@@ -154,7 +159,8 @@ func OpenFile(fs FS, name string, flag int, perm FileMode) (File, error) {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return OpenFile(mountFS, subPath, flag, perm)
+		file, err := OpenFile(mountFS, subPath, flag, perm)
+		return file, stripErrPathPrefix(err, name, subPath)
 	}
 	return nil, &PathError{Op: "open", Path: name, Err: ErrNotImplemented}
 }
@@ -174,7 +180,8 @@ func Mkdir(fs FS, name string, perm FileMode) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return Mkdir(mountFS, subPath, perm)
+		err := Mkdir(mountFS, subPath, perm)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 	return &PathError{Op: "mkdir", Path: name, Err: ErrNotImplemented}
 }
@@ -186,7 +193,8 @@ func MkdirAll(fs FS, path string, perm FileMode) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(path)
-		return MkdirAll(mountFS, subPath, perm)
+		err := MkdirAll(mountFS, subPath, perm)
+		return stripErrPathPrefix(err, path, subPath)
 	}
 	if !ValidPath(path) {
 		return &PathError{Op: "mkdirall", Path: path, Err: ErrInvalid}
@@ -218,7 +226,9 @@ func Remove(fs FS, name string) error {
 		return fs.Remove(name)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return Remove(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		err := Remove(mountFS, subPath)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 	return &PathError{Op: "remove", Path: name, Err: ErrNotImplemented}
 }
@@ -229,7 +239,9 @@ func RemoveAll(fs FS, path string) error {
 		return fs.RemoveAll(path)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return RemoveAll(fs.Mount(path))
+		mountFS, subPath := fs.Mount(path)
+		err := RemoveAll(mountFS, subPath)
+		return stripErrPathPrefix(err, path, subPath)
 	}
 
 	if !ValidPath(path) {
@@ -284,7 +296,9 @@ func Stat(fs FS, name string) (FileInfo, error) {
 		return fs.Stat(name)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return Stat(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		info, err := Stat(mountFS, subPath)
+		return info, stripErrPathPrefix(err, name, subPath)
 	}
 	file, err := fs.Open(name)
 	if err != nil {
@@ -300,7 +314,9 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 		return fs.Lstat(name)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return Lstat(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		info, err := Lstat(mountFS, subPath)
+		return info, stripErrPathPrefix(err, name, subPath)
 	}
 	return nil, &PathError{Op: "lstat", Path: name, Err: ErrNotImplemented}
 }
@@ -308,7 +324,9 @@ func Lstat(fs FS, name string) (FileInfo, error) {
 // LstatOrStat attempts to call an optimized fs.LstatOrStat(), fs.Lstat(), or fs.Stat() - whichever is supported first.
 func LstatOrStat(fs FS, name string) (FileInfo, error) {
 	if fs, ok := fs.(MountFS); ok {
-		return LstatOrStat(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		info, err := LstatOrStat(mountFS, subPath)
+		return info, stripErrPathPrefix(err, name, subPath)
 	}
 	info, err := Lstat(fs, name)
 	if errors.Is(err, ErrNotImplemented) {
@@ -324,7 +342,8 @@ func Chmod(fs FS, name string, mode FileMode) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return Chmod(mountFS, subPath, mode)
+		err := Chmod(mountFS, subPath, mode)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 	file, err := fs.Open(name)
 	if err != nil {
@@ -341,7 +360,8 @@ func Chown(fs FS, name string, uid, gid int) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return Chown(mountFS, subPath, uid, gid)
+		err := Chown(mountFS, subPath, uid, gid)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 	file, err := fs.Open(name)
 	if err != nil {
@@ -358,7 +378,8 @@ func Chtimes(fs FS, name string, atime time.Time, mtime time.Time) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return Chtimes(mountFS, subPath, atime, mtime)
+		err := Chtimes(mountFS, subPath, atime, mtime)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 	file, err := fs.Open(name)
 	if err != nil {
@@ -374,7 +395,9 @@ func ReadDir(fs FS, name string) ([]DirEntry, error) {
 		return fs.ReadDir(name)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return ReadDir(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		dirEntries, err := ReadDir(mountFS, subPath)
+		return dirEntries, stripErrPathPrefix(err, name, subPath)
 	}
 	return gofs.ReadDir(fs, name)
 }
@@ -385,7 +408,9 @@ func ReadFile(fs FS, name string) ([]byte, error) {
 		return fs.ReadFile(name)
 	}
 	if fs, ok := fs.(MountFS); ok {
-		return ReadFile(fs.Mount(name))
+		mountFS, subPath := fs.Mount(name)
+		b, err := ReadFile(mountFS, subPath)
+		return b, stripErrPathPrefix(err, name, subPath)
 	}
 	return gofs.ReadFile(fs, name)
 }
@@ -397,7 +422,8 @@ func WriteFullFile(fs FS, name string, data []byte, perm FileMode) error {
 	}
 	if fs, ok := fs.(MountFS); ok {
 		mountFS, subPath := fs.Mount(name)
-		return WriteFullFile(mountFS, subPath, data, perm)
+		err := WriteFullFile(mountFS, subPath, data, perm)
+		return stripErrPathPrefix(err, name, subPath)
 	}
 
 	f, err := OpenFile(fs, name, FlagWriteOnly|FlagCreate|FlagTruncate, perm)
