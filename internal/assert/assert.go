@@ -185,6 +185,16 @@ func Prefix(tb testing.TB, expected, actual string) bool {
 	return true
 }
 
+// Suffix asserts actual ends with expected
+func Suffix(tb testing.TB, expected, actual string) bool {
+	tb.Helper()
+	if !strings.HasSuffix(actual, expected) {
+		tb.Errorf("Actual is not suffixed with expected:\nExpected: %s\nActual:   %s", expected, actual)
+		return false
+	}
+	return true
+}
+
 // Subset asserts 'sub' is a subset of 'super'
 func Subset(tb testing.TB, sub, super interface{}) bool {
 	tb.Helper()

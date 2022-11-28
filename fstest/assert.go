@@ -96,3 +96,47 @@ func (o FSOptions) assertSubsetQuickInfos(tb testing.TB, a, b []quickInfo) bool 
 	}
 	return assert.Subset(tb, a, b)
 }
+
+func (o FSOptions) assertEqualPathErr(tb testing.TB, expected *hackpadfs.PathError, actual error) {
+	tb.Helper()
+	if !assert.IsType(tb, (*hackpadfs.PathError)(nil), actual) {
+		return
+	}
+	actualPathErr := actual.(*hackpadfs.PathError)
+	assert.Equal(tb, expected.Op, actualPathErr.Op)
+	o.assertEqualErrPath(tb, expected.Path, actualPathErr.Path)
+	o.assertEqualErrField(tb, expected.Err, actualPathErr.Err)
+}
+
+func (o FSOptions) assertEqualLinkErr(tb testing.TB, expected *hackpadfs.LinkError, actual error) {
+	tb.Helper()
+	if !assert.IsType(tb, (*hackpadfs.LinkError)(nil), actual) {
+		return
+	}
+	actualLinkErr := actual.(*hackpadfs.LinkError)
+	assert.Equal(tb, expected.Op, actualLinkErr.Op)
+	o.assertEqualErrPath(tb, expected.Old, actualLinkErr.Old)
+	o.assertEqualErrPath(tb, expected.New, actualLinkErr.New)
+	o.assertEqualErrField(tb, expected.Err, actualLinkErr.Err)
+}
+
+func (o FSOptions) assertEqualErrPath(tb testing.TB, expected, actual string) {
+	tb.Helper()
+	if o.Constraints.AllowErrPathPrefix && expected != actual {
+		assert.Suffix(tb, "/"+expected, actual)
+	} else {
+		assert.Equal(tb, expected, actual)
+	}
+}
+
+func (o FSOptions) assertEqualErrField(tb testing.TB, expected, actual error) {
+	tb.Helper()
+	if !assert.NotZero(tb, expected) || !assert.NotZero(tb, actual) {
+		return
+	}
+	errorIs := errors.Is(actual, expected)
+	equalErr := expected.Error() == actual.Error()
+	if !errorIs && !equalErr {
+		assert.ErrorIs(tb, expected, actual)
+	}
+}

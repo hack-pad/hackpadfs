@@ -69,6 +69,8 @@ func (fn TestSetupFunc) FS(tb testing.TB) (SetupFS, func() hackpadfs.FS) {
 type Constraints struct {
 	// FileModeMask disables mode checks on the specified bits. Defaults to checking all bits (0).
 	FileModeMask hackpadfs.FileMode
+	// AllowErrPathPrefix enables more flexible FS path checks on error values by allowing an undefined path prefix.
+	AllowErrPathPrefix bool
 }
 
 // Facets contains details for the current test.
