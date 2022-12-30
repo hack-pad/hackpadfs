@@ -10,12 +10,20 @@ import (
 	"sync/atomic"
 	"syscall/js"
 
-	"github.com/hack-pad/hackpadfs/internal/exception"
 	"github.com/hack-pad/hackpadfs/internal/jswrapper"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
+	"github.com/hack-pad/safejs"
 )
 
-var uint8Array = js.Global().Get("Uint8Array")
+var uint8Array safejs.Value
+
+func init() {
+	var err error
+	uint8Array, err = safejs.Global().Get("Uint8Array")
+	if err != nil {
+		panic(err)
+	}
+}
 
 var (
 	_ interface {
@@ -31,44 +39,65 @@ var (
 // Blob is a blob.Blob for JS environments, optimized for reading and writing to a Uint8Array without en/decoding back and forth.
 type Blob struct {
 	bytes   atomic.Value // *blob.Bytes
-	jsValue atomic.Value // js.Value
+	jsValue atomic.Value // safejs.Value
 	length  int64
 }
 
 // New creates a Blob wrapping the given JS Uint8Array buffer.
-func New(buf js.Value) (_ *Blob, returnedErr error) {
-	defer exception.Catch(&returnedErr)
-	if !buf.Truthy() {
+func New(unsafeBuf js.Value) (*Blob, error) {
+	buf := safejs.Safe(unsafeBuf)
+	truthy, err := buf.Truthy()
+	if err != nil {
+		return nil, err
+	}
+	if !truthy {
 		return FromBlob(blob.NewBytes(nil)), nil
 	}
-	if !buf.InstanceOf(uint8Array) {
+	instanceOf, err := buf.InstanceOf(uint8Array)
+	if err != nil {
+		return nil, err
+	}
+	if !instanceOf {
 		return nil, fmt.Errorf("invalid JS array type: %v", buf)
 	}
 	return newBlob(buf), nil
 }
 
 // NewLength creates a zero-value Blob with 'length' bytes.
-func NewLength(length int) (_ *Blob, err error) {
-	defer exception.Catch(&err)
-	jsBuf := uint8Array.New(length)
+func NewLength(length int) (*Blob, error) {
+	jsBuf, err := uint8Array.New(length)
+	if err != nil {
+		return nil, err
+	}
 	return newBlob(jsBuf), nil
 }
 
-func newBlob(buf js.Value) *Blob {
+func newBlob(buf safejs.Value) *Blob {
 	b := &Blob{}
 	b.jsValue.Store(buf)
-	atomic.StoreInt64(&b.length, int64(buf.Length()))
+	length, err := buf.Length()
+	if err != nil {
+		panic(err)
+	}
+	atomic.StoreInt64(&b.length, int64(length))
 	return b
 }
 
 // FromBlob creates a Blob from the given blob.Blob, either wrapping the JS value or copying the bytes if incompatible.
 func FromBlob(b blob.Blob) *Blob {
 	if b, ok := b.(jswrapper.Wrapper); ok {
-		return newBlob(b.JSValue())
+		value := safejs.Safe(b.JSValue())
+		return newBlob(value)
 	}
 	buf := b.Bytes()
-	jsBuf := uint8Array.New(len(buf))
-	js.CopyBytesToJS(jsBuf, buf)
+	jsBuf, err := uint8Array.New(len(buf))
+	if err != nil {
+		panic(err)
+	}
+	_, err = safejs.CopyBytesToJS(jsBuf, buf)
+	if err != nil {
+		panic(err)
+	}
 	return newBlob(jsBuf)
 }
 
@@ -85,26 +114,29 @@ func (b *Blob) Bytes() []byte {
 	if buf := b.currentBytes(); buf != nil {
 		return buf.Bytes()
 	}
-	jsBuf := b.jsValue.Load().(js.Value)
-	buf := make([]byte, jsBuf.Length())
-	js.CopyBytesToGo(buf, jsBuf)
+	jsBuf := b.jsValue.Load().(safejs.Value)
+	length, err := jsBuf.Length()
+	if err != nil {
+		panic(err)
+	}
+	buf := make([]byte, length)
+	_, err = safejs.CopyBytesToGo(buf, jsBuf)
+	if err != nil {
+		panic(err)
+	}
 	b.bytes.Store(blob.NewBytes(buf))
 	return buf
 }
 
 // JSValue implements jswrapper.Wrapper
 func (b *Blob) JSValue() js.Value {
-	return b.jsValue.Load().(js.Value)
+	value := b.jsValue.Load().(safejs.Value)
+	return safejs.Unsafe(value)
 }
 
 // Len implements blob.Blob
 func (b *Blob) Len() int {
 	return int(atomic.LoadInt64(&b.length))
-}
-
-func catchErr(fn func() error) (returnedErr error) {
-	defer exception.Catch(&returnedErr)
-	return fn()
 }
 
 // View implements blob.ViewBlob
@@ -114,11 +146,12 @@ func (b *Blob) View(start, end int64) (blob.Blob, error) {
 	}
 
 	var newBlob *Blob
-	err := catchErr(func() error {
-		var err error
-		newBlob, err = New(b.JSValue().Call("subarray", start, end))
-		return err
-	})
+	value := safejs.Safe(b.JSValue())
+	subarray, err := value.Call("subarray", start, end)
+	if err != nil {
+		return nil, err
+	}
+	newBlob, err = New(safejs.Unsafe(subarray))
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +175,12 @@ func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 		return nil, fmt.Errorf("End index out of bounds: %d", end)
 	}
 
-	newBlob, err := New(b.JSValue().Call("slice", start, end))
+	value := safejs.Safe(b.JSValue())
+	slice, err := value.Call("slice", start, end)
+	if err != nil {
+		return nil, err
+	}
+	newBlob, err := New(safejs.Unsafe(slice))
 	if err != nil {
 		return nil, err
 	}
@@ -165,10 +203,9 @@ func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
 		return 0, fmt.Errorf("Offset out of bounds: %d", destStart)
 	}
 
-	err = catchErr(func() error {
-		b.JSValue().Call("set", FromBlob(src).JSValue(), destStart)
-		return nil
-	})
+	bValue := safejs.Safe(b.JSValue())
+	srcValue := safejs.Safe(FromBlob(src).JSValue())
+	_, err = bValue.Call("set", srcValue, destStart)
 	if err != nil {
 		return 0, err
 	}
@@ -187,16 +224,16 @@ func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
 func (b *Blob) Grow(off int64) error {
 	newLength := atomic.LoadInt64(&b.length) + off
 
-	err := catchErr(func() error {
-		buf := b.jsValue.Load().(js.Value)
-		biggerBuf := uint8Array.New(newLength)
-		biggerBuf.Call("set", buf, 0)
-		b.jsValue.Store(biggerBuf)
-		return nil
-	})
+	buf := b.jsValue.Load().(safejs.Value)
+	biggerBuf, err := uint8Array.New(newLength)
 	if err != nil {
 		return err
 	}
+	_, err = biggerBuf.Call("set", buf, 0)
+	if err != nil {
+		return err
+	}
+	b.jsValue.Store(biggerBuf)
 	atomic.StoreInt64(&b.length, newLength)
 
 	if buf := b.currentBytes(); buf != nil {
@@ -214,14 +251,12 @@ func (b *Blob) Truncate(size int64) error {
 		return nil
 	}
 
-	err := catchErr(func() error {
-		smallerBuf := b.JSValue().Call("slice", 0, size)
-		b.jsValue.Store(smallerBuf)
-		return nil
-	})
+	value := safejs.Safe(b.JSValue())
+	smallerBuf, err := value.Call("slice", 0, size)
 	if err != nil {
 		return err
 	}
+	b.jsValue.Store(smallerBuf)
 	atomic.StoreInt64(&b.length, size)
 
 	if buf := b.currentBytes(); buf != nil {

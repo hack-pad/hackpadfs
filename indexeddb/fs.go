@@ -6,12 +6,12 @@ package indexeddb
 
 import (
 	"context"
-	"syscall/js"
 	"time"
 
 	"github.com/hack-pad/go-indexeddb/idb"
 	"github.com/hack-pad/hackpadfs"
 	"github.com/hack-pad/hackpadfs/keyvalue"
+	"github.com/hack-pad/safejs"
 )
 
 const (
@@ -48,7 +48,11 @@ func NewFS(ctx context.Context, name string, options Options) (*FS, error) {
 		if err != nil {
 			return err
 		}
-		_, err = infos.CreateIndex(parentKey, js.ValueOf(parentKey), idb.IndexOptions{})
+		jsParentKey, err := safejs.ValueOf(parentKey)
+		if err != nil {
+			return err
+		}
+		_, err = infos.CreateIndex(parentKey, safejs.Unsafe(jsParentKey), idb.IndexOptions{})
 		return err
 	})
 	if err != nil {
