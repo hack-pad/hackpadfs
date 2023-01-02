@@ -95,9 +95,10 @@ import (
     "github.com/hack-pad/hackpadfs/os"
 )
 
-fs, _ := os.NewFS()
-workingDirectory, _ := goOS.Getwd() // Get current working directory
-fs, _ = fs.Sub(workingDirectory)    // Run all file system operations rooted at the current working directory
+fs := os.NewFS()
+workingDirectory, _ := goOS.Getwd()                    // Get current working directory
+workingDirectory, _ = fs.FromOSPath(workingDirectory)  // Convert to an FS path
+workingDirFS, _ := fs.Sub(workingDirectory)            // Run all file system operations rooted at the current working directory
 ```
 
 #### Path separators (slashes)
