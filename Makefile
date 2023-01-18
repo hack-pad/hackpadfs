@@ -34,12 +34,14 @@ test-deps:
 .PHONY: test
 test: test-deps
 	go test .  # Run library-level checks first, for more helpful build tag failure messages.
-	go test -race -coverprofile=cover.out ./...
+	go test -race -coverprofile=native-cover.out ./...
 	if [[ "$$CI" != true || $$(uname -s) == Linux ]]; then \
 		set -ex; \
-		GOOS=js GOARCH=wasm go test -cover ./...; \
+		GOOS=js GOARCH=wasm go test -coverprofile=js-cover.out -covermode=atomic ./...; \
 		cd examples && go test -race ./...; \
 	fi
+	{ echo 'mode: atomic'; cat *-cover.out | grep -v '^mode:'; } > cover.out && rm *-cover.out
+	go tool cover -func cover.out | grep total:
 	@if [[ "$$CI" == true && $$(uname -s) == Linux && "$$(go version)" == *go"$$COVERAGE_VERSION"* ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github || true; \
