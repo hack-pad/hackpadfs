@@ -367,7 +367,7 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 	parentReq := &parentDirExistsReq{
 		Request: req,
 	}
-	req.ListenSuccess(ctx, func() {
+	listenErr := req.ListenSuccess(ctx, func() {
 		result, err := req.Result()
 		if err != nil {
 			if txn, err := infos.Transaction(); err == nil {
@@ -384,7 +384,7 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 			return
 		}
 	})
-	return parentReq, nil
+	return parentReq, listenErr
 }
 
 func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Transaction, error) {
