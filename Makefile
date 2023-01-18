@@ -20,7 +20,7 @@ lint: lint-deps
 	"${GO_BIN}/golangci-lint" run
 	GOOS=js GOARCH=wasm "${GO_BIN}/golangci-lint" run
 	cd examples && "${GO_BIN}/golangci-lint" run --config=../.golangci.yml --timeout=5m
-	GOOS=js GOARCH=wasm "${GO_BIN}/jsguard" -test=false ./...
+	GOOS=js GOARCH=wasm "${GO_BIN}/jsguard" ./...
 
 .PHONY: test-deps
 test-deps:
