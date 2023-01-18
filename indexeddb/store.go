@@ -6,7 +6,6 @@ package indexeddb
 import (
 	"context"
 	"path"
-	"syscall/js"
 	"time"
 
 	"github.com/hack-pad/go-indexeddb/idb"
@@ -14,6 +13,7 @@ import (
 	"github.com/hack-pad/hackpadfs/indexeddb/idbblob"
 	"github.com/hack-pad/hackpadfs/keyvalue"
 	"github.com/hack-pad/hackpadfs/keyvalue/blob"
+	"github.com/hack-pad/safejs"
 )
 
 var (
@@ -52,7 +52,11 @@ func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, erro
 }
 
 func (s *store) getFile(files *idb.ObjectStore, path string) (*getFileRequest, error) {
-	req, err := files.Get(js.ValueOf(path))
+	jsPath, err := safejs.ValueOf(path)
+	if err != nil {
+		return nil, err
+	}
+	req, err := files.Get(safejs.Unsafe(jsPath))
 	if err != nil {
 		return nil, err
 	}
@@ -74,23 +78,43 @@ func newGetFileRequest(s *store, path string, req *idb.Request) *getFileRequest 
 }
 
 func (g *getFileRequest) Await(ctx context.Context) (keyvalue.FileRecord, error) {
-	return g.parseResult(g.Request.Await(ctx))
+	result, err := g.Request.Await(ctx)
+	return g.parseResult(safejs.Safe(result), err)
 }
 
 func (g *getFileRequest) Result() (keyvalue.FileRecord, error) {
-	return g.parseResult(g.Request.Result())
+	result, err := g.Request.Result()
+	return g.parseResult(safejs.Safe(result), err)
 }
 
-func (g *getFileRequest) parseResult(result js.Value, err error) (keyvalue.FileRecord, error) {
+func (g *getFileRequest) parseResult(result safejs.Value, err error) (keyvalue.FileRecord, error) {
 	if result.IsUndefined() {
 		return nil, hackpadfs.ErrNotExist
 	}
 	if err != nil {
 		return nil, err
 	}
-	initialSize := int64(result.Get("Size").Int())
-	modTime := time.Unix(0, int64(result.Get("ModTime").Int()))
-	mode := getMode(result)
+	jsInitialSize, err := result.Get("Size")
+	if err != nil {
+		return nil, err
+	}
+	initialSize, err := jsInitialSize.Int()
+	if err != nil {
+		return nil, err
+	}
+	jsModTime, err := result.Get("ModTime")
+	if err != nil {
+		return nil, err
+	}
+	intModTime, err := jsModTime.Int()
+	if err != nil {
+		return nil, err
+	}
+	modTime := time.Unix(0, int64(intModTime))
+	mode, err := getMode(result)
+	if err != nil {
+		return nil, err
+	}
 	var getData func() (blob.Blob, error)
 	var getDirNames func() ([]string, error)
 	if mode.IsDir() {
@@ -98,7 +122,7 @@ func (g *getFileRequest) parseResult(result js.Value, err error) (keyvalue.FileR
 	} else {
 		getData = g.store.getFileData(g.path)
 	}
-	return keyvalue.NewBaseFileRecord(initialSize, modTime, mode, nil, getData, getDirNames), nil
+	return keyvalue.NewBaseFileRecord(int64(initialSize), modTime, mode, nil, getData, getDirNames), nil
 }
 
 func (s *store) getFileData(path string) func() (blob.Blob, error) {
@@ -114,7 +138,11 @@ func (s *store) getFileData(path string) func() (blob.Blob, error) {
 		if err != nil {
 			return nil, err
 		}
-		req, err := files.Get(js.ValueOf(path))
+		jsPath, err := safejs.ValueOf(path)
+		if err != nil {
+			return nil, err
+		}
+		req, err := files.Get(safejs.Unsafe(jsPath))
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +175,11 @@ func (s *store) getDirNames(name string) func() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		keyRange, err := idb.NewKeyRangeOnly(js.ValueOf(name))
+		jsName, err := safejs.ValueOf(name)
+		if err != nil {
+			return nil, err
+		}
+		keyRange, err := idb.NewKeyRangeOnly(safejs.Unsafe(jsName))
 		if err != nil {
 			return nil, err
 		}
@@ -166,9 +198,13 @@ func (s *store) getDirNames(name string) func() ([]string, error) {
 	}
 }
 
-func getMode(fileRecord js.Value) hackpadfs.FileMode {
-	mode := fileRecord.Get("Mode")
-	return hackpadfs.FileMode(mode.Int())
+func getMode(fileRecord safejs.Value) (hackpadfs.FileMode, error) {
+	mode, err := fileRecord.Get("Mode")
+	if err != nil {
+		return 0, err
+	}
+	intMode, err := mode.Int()
+	return hackpadfs.FileMode(intMode), err
 }
 
 const rootPath = "."
@@ -238,17 +274,24 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 }
 
 func deleteRecord(infos, contents *idb.ObjectStore, name string) error {
-	jsName := js.ValueOf(name)
-	_, err := infos.Delete(jsName)
+	jsName, err := safejs.ValueOf(name)
 	if err != nil {
 		return err
 	}
-	_, err = contents.Delete(jsName)
+	_, err = infos.Delete(safejs.Unsafe(jsName))
+	if err != nil {
+		return err
+	}
+	_, err = contents.Delete(safejs.Unsafe(jsName))
 	return err
 }
 
 func setFileContents(contents *idb.ObjectStore, name string, data blob.Blob) error {
-	_, err := contents.PutKey(js.ValueOf(name), idbblob.FromBlob(data).JSValue())
+	jsName, err := safejs.ValueOf(name)
+	if err != nil {
+		return err
+	}
+	_, err = contents.PutKey(safejs.Unsafe(jsName), idbblob.FromBlob(data).JSValue())
 	return err
 }
 
@@ -274,7 +317,15 @@ func validateAndSetFileMeta(ctx context.Context, infos *idb.ObjectStore, name st
 		return nil, nil, err
 	}
 
-	req, err := infos.PutKey(js.ValueOf(name), js.ValueOf(fileInfo))
+	jsName, err := safejs.ValueOf(name)
+	if err != nil {
+		return nil, nil, err
+	}
+	jsFileInfo, err := safejs.ValueOf(fileInfo)
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := infos.PutKey(safejs.Unsafe(jsName), safejs.Unsafe(jsFileInfo))
 	return req, parentExistsReq, err
 }
 
@@ -305,14 +356,18 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 		return nil, nil
 	}
 
-	req, err := infos.Get(js.ValueOf(dir))
+	jsDir, err := safejs.ValueOf(dir)
+	if err != nil {
+		return nil, err
+	}
+	req, err := infos.Get(safejs.Unsafe(jsDir))
 	if err != nil {
 		return nil, err
 	}
 	parentReq := &parentDirExistsReq{
 		Request: req,
 	}
-	req.ListenSuccess(ctx, func() {
+	listenErr := req.ListenSuccess(ctx, func() {
 		result, err := req.Result()
 		if err != nil {
 			if txn, err := infos.Transaction(); err == nil {
@@ -320,8 +375,8 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 			}
 			return
 		}
-		mode := getMode(result)
-		if !mode.IsDir() {
+		mode, err := getMode(safejs.Safe(result))
+		if err == nil && !mode.IsDir() {
 			if txn, err := infos.Transaction(); err == nil {
 				_ = txn.Abort()
 			}
@@ -329,7 +384,7 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 			return
 		}
 	})
-	return parentReq, nil
+	return parentReq, listenErr
 }
 
 func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Transaction, error) {

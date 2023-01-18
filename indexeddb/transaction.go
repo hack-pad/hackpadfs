@@ -86,7 +86,7 @@ func (t *transaction) GetHandler(path string, handler keyvalue.OpHandler) (op ke
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: err})
 		return
 	}
-	req.Listen(t.ctx, func() {
+	listenErr := req.Listen(t.ctx, func() {
 		record, err := req.Result()
 		result := keyvalue.OpResult{
 			Op:     op,
@@ -101,6 +101,10 @@ func (t *transaction) GetHandler(path string, handler keyvalue.OpHandler) (op ke
 		err := req.Err()
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: err})
 	})
+	if listenErr != nil {
+		t.setResult(op, keyvalue.OpResult{Op: op, Err: listenErr})
+		return
+	}
 	return
 }
 
@@ -156,7 +160,7 @@ func (t *transaction) SetHandler(name string, record keyvalue.FileRecord, data b
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: err})
 		return
 	}
-	req.Listen(t.ctx, func() {
+	listenErr := req.Listen(t.ctx, func() {
 		result := keyvalue.OpResult{Op: op, Err: req.Err()}
 		if err := handler.Handle(t, result); err != nil {
 			result.Err = err
@@ -165,6 +169,10 @@ func (t *transaction) SetHandler(name string, record keyvalue.FileRecord, data b
 	}, func() {
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: req.Err()})
 	})
+	if listenErr != nil {
+		t.setResult(op, keyvalue.OpResult{Op: op, Err: listenErr})
+		return
+	}
 	return
 }
 
