@@ -60,7 +60,7 @@ func New(unsafeBuf js.Value) (*Blob, error) {
 	if !instanceOf {
 		return nil, fmt.Errorf("invalid JS array type: %v", buf)
 	}
-	return newBlob(buf), nil
+	return newBlob(buf)
 }
 
 // NewLength creates a zero-value Blob with 'length' bytes.
@@ -69,22 +69,30 @@ func NewLength(length int) (*Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newBlob(jsBuf), nil
+	return newBlob(jsBuf)
 }
 
-func newBlob(buf safejs.Value) *Blob {
+func newBlob(buf safejs.Value) (*Blob, error) {
 	b := &Blob{}
 	b.jsValue.Store(buf)
 	length, err := buf.Length()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	atomic.StoreInt64(&b.length, int64(length))
-	return b
+	return b, nil
 }
 
 // FromBlob creates a Blob from the given blob.Blob, either wrapping the JS value or copying the bytes if incompatible.
 func FromBlob(b blob.Blob) *Blob {
+	blob, err := fromBlob(b)
+	if err != nil {
+		panic(err)
+	}
+	return blob
+}
+
+func fromBlob(b blob.Blob) (*Blob, error) {
 	if b, ok := b.(jswrapper.Wrapper); ok {
 		value := safejs.Safe(b.JSValue())
 		return newBlob(value)
@@ -92,11 +100,11 @@ func FromBlob(b blob.Blob) *Blob {
 	buf := b.Bytes()
 	jsBuf, err := uint8Array.New(len(buf))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	_, err = safejs.CopyBytesToJS(jsBuf, buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return newBlob(jsBuf)
 }
@@ -111,21 +119,29 @@ func (b *Blob) currentBytes() *blob.Bytes {
 
 // Bytes implememts blob.Blob
 func (b *Blob) Bytes() []byte {
+	buf, err := b.getBytes()
+	if err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+func (b *Blob) getBytes() ([]byte, error) {
 	if buf := b.currentBytes(); buf != nil {
-		return buf.Bytes()
+		return buf.Bytes(), nil
 	}
 	jsBuf := b.jsValue.Load().(safejs.Value)
 	length, err := jsBuf.Length()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	buf := make([]byte, length)
 	_, err = safejs.CopyBytesToGo(buf, jsBuf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	b.bytes.Store(blob.NewBytes(buf))
-	return buf
+	return buf, nil
 }
 
 // JSValue implements jswrapper.Wrapper
@@ -159,7 +175,7 @@ func (b *Blob) View(start, end int64) (blob.Blob, error) {
 	if buf := b.currentBytes(); buf != nil {
 		newBytesBlob, err := b.currentBytes().View(start, end)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		newBlob.bytes.Store(newBytesBlob)
 	}
@@ -187,7 +203,7 @@ func (b *Blob) Slice(start, end int64) (blob.Blob, error) {
 	if buf := b.currentBytes(); buf != nil {
 		newBytes, err := buf.Slice(start, end)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		newBlob.bytes.Store(newBytes)
 	}
@@ -214,7 +230,7 @@ func (b *Blob) Set(src blob.Blob, destStart int64) (n int, err error) {
 	if buf := b.currentBytes(); buf != nil {
 		_, err := buf.Set(src, destStart)
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
 	}
 	return n, nil
@@ -239,7 +255,7 @@ func (b *Blob) Grow(off int64) error {
 	if buf := b.currentBytes(); buf != nil {
 		err := buf.Grow(off)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 	return nil
