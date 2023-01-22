@@ -40,8 +40,11 @@ func (t *transaction) setResult(op keyvalue.OpID, result keyvalue.OpResult) {
 func (t *transaction) setPendingResult(op keyvalue.OpID, req *getFileRequest) {
 	t.resultsMu.Lock()
 	t.pendingResults = append(t.pendingResults, func() {
-		record, err := req.Result()
-		t.setResult(op, keyvalue.OpResult{Op: op, Record: record, Err: err})
+		result := keyvalue.OpResult{Op: op}
+		if req != nil {
+			result.Record, result.Err = req.Result()
+		}
+		t.setResult(op, result)
 	})
 	t.resultsMu.Unlock()
 }
@@ -115,6 +118,7 @@ func (t *transaction) Set(name string, record keyvalue.FileRecord, contents blob
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: err})
 		return
 	}
+	t.setPendingResult(op, nil)
 	return
 }
 
