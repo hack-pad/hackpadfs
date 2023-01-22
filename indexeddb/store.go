@@ -33,22 +33,17 @@ func newStore(db *idb.Database, options Options) *store {
 }
 
 func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, error) {
-	txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
-		Mode:       idb.TransactionReadOnly,
-		Durability: s.options.TransactionDurability,
-	}, infoStore)
+	txn, err := s.Transaction(keyvalue.TransactionOptions{})
 	if err != nil {
 		return nil, err
 	}
-	files, err := txn.ObjectStore(infoStore)
+	txn.Get(path)
+	ops, err := txn.Commit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req, err := s.getFile(files, path)
-	if err != nil {
-		return nil, err
-	}
-	return req.Await(ctx)
+	op := ops[0]
+	return op.Record, op.Err
 }
 
 func (s *store) getFile(files *idb.ObjectStore, path string) (*getFileRequest, error) {
@@ -75,11 +70,6 @@ func newGetFileRequest(s *store, path string, req *idb.Request) *getFileRequest 
 		store:   s,
 		path:    path,
 	}
-}
-
-func (g *getFileRequest) Await(ctx context.Context) (keyvalue.FileRecord, error) {
-	result, err := g.Request.Await(ctx)
-	return g.parseResult(safejs.Safe(result), err)
 }
 
 func (g *getFileRequest) Result() (keyvalue.FileRecord, error) {
@@ -210,67 +200,26 @@ func getMode(fileRecord safejs.Value) (hackpadfs.FileMode, error) {
 const rootPath = "."
 
 func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
-	includeContents := record == nil || record.Mode().IsRegular() // i.e. "should delete" OR "is a regular file"
-	stores := []string{infoStore}
-	if includeContents {
-		stores = append(stores, contentsStore)
-	}
 	var data blob.Blob
-	if record != nil && record.Mode().IsRegular() {
-		// get data now, since it should not interrupt the transaction
+	if record != nil && record.Mode().IsRegular() { // i.e. "should not delete" AND "is a regular file"
 		var err error
 		data, err = record.Data()
 		if err != nil {
 			return err
 		}
 	}
-
-	txn, err := s.db.TransactionWithOptions(idb.TransactionOptions{
-		Mode:       idb.TransactionReadWrite,
-		Durability: s.options.TransactionDurability,
-	}, stores[0], stores[1:]...)
+	txn, err := s.Transaction(keyvalue.TransactionOptions{
+		Mode: keyvalue.TransactionReadWrite,
+	})
 	if err != nil {
 		return err
 	}
-	infos, err := txn.ObjectStore(infoStore)
+	txn.Set(name, record, data)
+	ops, err := txn.Commit(ctx)
 	if err != nil {
 		return err
 	}
-	var contents *idb.ObjectStore
-	if includeContents {
-		contents, err = txn.ObjectStore(contentsStore)
-		if err != nil {
-			return err
-		}
-	}
-
-	if record == nil {
-		if name == rootPath {
-			return hackpadfs.ErrNotImplemented // cannot delete root dir
-		}
-		err = deleteRecord(infos, contents, name)
-		if err != nil {
-			return err
-		}
-		return txn.Await(ctx)
-	}
-
-	if includeContents {
-		err := setFileContents(contents, name, data)
-		if err != nil {
-			return err
-		}
-	}
-	// always set metadata to update size when contents change
-	_, parentExistsReq, err := validateAndSetFileMeta(ctx, infos, name, record, data)
-	if err != nil {
-		return err
-	}
-	err = txn.Await(ctx)
-	if pErr := parentExistsReq.Err(); pErr != nil {
-		return pErr
-	}
-	return err
+	return ops[0].Err
 }
 
 func deleteRecord(infos, contents *idb.ObjectStore, name string) error {
@@ -332,14 +281,6 @@ func validateAndSetFileMeta(ctx context.Context, infos *idb.ObjectStore, name st
 type parentDirExistsReq struct {
 	*idb.Request
 	notExists bool
-}
-
-func (p *parentDirExistsReq) Result() error {
-	_, err := p.Request.Result()
-	if err != nil {
-		return err
-	}
-	return p.Err()
 }
 
 func (p *parentDirExistsReq) Err() error {
