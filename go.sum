@@ -1,5 +1,7 @@
 github.com/hack-pad/go-indexeddb v0.3.0 h1:SkKFoWnN047GvblHWM076tH43T0zLduNCCiv0nKDRUI=
 github.com/hack-pad/go-indexeddb v0.3.0/go.mod h1:QvfTevpDVlkfomY498LhstjwbPW6QC4VC/lxYb0Kom0=
+github.com/hack-pad/go-indexeddb v0.3.1 h1:PewXAVjRU4ovlGPaAPAC6WwMxzByRE23O+rf8un+iLc=
+github.com/hack-pad/go-indexeddb v0.3.1/go.mod h1:QvfTevpDVlkfomY498LhstjwbPW6QC4VC/lxYb0Kom0=
 github.com/hack-pad/safejs v0.1.0 h1:qPS6vjreAqh2amUqj4WNG1zIw7qlRQJ9K10eDKMCnE8=
 github.com/hack-pad/safejs v0.1.0/go.mod h1:HdS+bKF1NrE72VoXZeWzxFOVQVUSqZJAG0xNCnb+Tio=
 golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
