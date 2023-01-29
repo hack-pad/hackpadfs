@@ -136,7 +136,11 @@ func (t *transaction) set(op keyvalue.OpID, name string, record keyvalue.FileRec
 		if name == rootPath {
 			return nil, hackpadfs.ErrNotImplemented // cannot delete root dir
 		}
-		return nil, deleteRecord(infos, contents, name)
+		req, err := deleteRecord(infos, contents, name)
+		if err != nil {
+			return nil, err
+		}
+		return req.Request, nil
 	}
 
 	if data != nil {

@@ -22,23 +22,28 @@ func nowTruncated() time.Time {
 	return t.Truncate(time.Second)
 }
 
-func TestStoreGetSet(t *testing.T) {
-	ctx := context.Background()
-	options := Options{}
-	fs, err := NewFS(ctx, "foo", options)
-	assert.NoError(t, err)
-	store := newStore(fs.db, options)
-
-	_, err = store.Get(ctx, "bar")
-	assert.ErrorIs(t, hackpadfs.ErrNotExist, err)
-
-	data := []byte(`baz`)
-	setRecord := keyvalue.NewBaseFileRecord(
-		int64(len(data)), nowTruncated(), 0600, nil,
+func testFile(contents string) (keyvalue.FileRecord, blob.Blob) {
+	data := []byte(contents)
+	return keyvalue.NewBaseFileRecord(
+		int64(len(data)),
+		nowTruncated(),
+		0600,
+		nil,
 		func() (blob.Blob, error) {
 			return blob.NewBytes(data), nil
 		},
-		nil)
+		nil,
+	), blob.NewBytes(data)
+}
+
+func TestStoreGetSet(t *testing.T) {
+	store := newStore(makeFS(t).db, Options{})
+
+	ctx := context.Background()
+	_, err := store.Get(ctx, "bar")
+	assert.ErrorIs(t, hackpadfs.ErrNotExist, err)
+
+	setRecord, _ := testFile("baz")
 	err = store.Set(ctx, "bar", setRecord)
 	assert.NoError(t, err)
 

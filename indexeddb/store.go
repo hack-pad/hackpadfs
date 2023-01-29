@@ -222,17 +222,16 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 	return ops[0].Err
 }
 
-func deleteRecord(infos, contents *idb.ObjectStore, name string) error {
+func deleteRecord(infos, contents *idb.ObjectStore, name string) (*idb.AckRequest, error) {
 	jsName, err := safejs.ValueOf(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	_, err = infos.Delete(safejs.Unsafe(jsName))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = contents.Delete(safejs.Unsafe(jsName))
-	return err
+	return contents.Delete(safejs.Unsafe(jsName))
 }
 
 func setFileContents(contents *idb.ObjectStore, name string, data blob.Blob) error {
