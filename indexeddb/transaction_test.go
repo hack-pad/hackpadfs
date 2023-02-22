@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetSet(t *testing.T) {
+	t.Parallel()
 	store := newStore(makeFS(t).db, Options{})
 	txn, err := store.Transaction(keyvalue.TransactionOptions{
 		Mode: keyvalue.TransactionReadWrite,
