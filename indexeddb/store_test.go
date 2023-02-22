@@ -37,6 +37,7 @@ func testFile(contents string) (keyvalue.FileRecord, blob.Blob) {
 }
 
 func TestStoreGetSet(t *testing.T) {
+	t.Parallel()
 	store := newStore(makeFS(t).db, Options{})
 
 	ctx := context.Background()
@@ -65,4 +66,33 @@ func TestStoreGetSet(t *testing.T) {
 	_, setErr := setRecord.ReadDirNames()
 	_, getErr := getRecord.ReadDirNames()
 	assert.Equal(t, setErr, getErr)
+}
+
+func TestStoreGetMissingParentDir(t *testing.T) {
+	t.Parallel()
+	store := newStore(makeFS(t).db, Options{})
+
+	ctx := context.Background()
+	_, err := store.Get(ctx, "foo/bar")
+	assert.ErrorIs(t, hackpadfs.ErrNotExist, err)
+
+	setRecord, _ := testFile("bar")
+	err = store.Set(ctx, "foo/bar", setRecord)
+	assert.ErrorIs(t, hackpadfs.ErrNotDir, err)
+
+	_, err = store.Get(ctx, "foo")
+	assert.ErrorIs(t, hackpadfs.ErrNotExist, err)
+}
+
+func TestStoreGetParentIsFile(t *testing.T) {
+	t.Parallel()
+	store := newStore(makeFS(t).db, Options{})
+
+	ctx := context.Background()
+	fooRecord, _ := testFile("foo")
+	assert.NoError(t, store.Set(ctx, "foo", fooRecord))
+
+	barRecord, _ := testFile("bar")
+	err := store.Set(ctx, "foo/bar", barRecord)
+	assert.ErrorIs(t, hackpadfs.ErrNotDir, err)
 }

@@ -118,7 +118,6 @@ func (t *transaction) Set(name string, record keyvalue.FileRecord, contents blob
 		t.setResult(op, keyvalue.OpResult{Op: op, Err: err})
 		return
 	}
-	t.setPendingResult(op, nil)
 	return
 }
 
@@ -131,6 +130,7 @@ func (t *transaction) set(op keyvalue.OpID, name string, record keyvalue.FileRec
 	if err != nil {
 		return nil, err
 	}
+	t.setResult(op, keyvalue.OpResult{Op: op}) // Ensure an op is recorded. A later result can overwrite it.
 
 	if record == nil {
 		if name == rootPath {

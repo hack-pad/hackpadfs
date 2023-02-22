@@ -48,10 +48,11 @@ func TestGetSet(t *testing.T) {
 		{Op: 2, Record: setRecord},
 		{Op: 3},
 	}
-	assert.Equal(t, len(expected), len(results))
-	for i := range expected {
-		expect, result := expected[i], results[i]
-		assertEqualOpResult(t, expect, result)
+	if assert.Equal(t, len(expected), len(results)) {
+		for i := range expected {
+			expect, result := expected[i], results[i]
+			assertEqualOpResult(t, expect, result)
+		}
 	}
 }
 

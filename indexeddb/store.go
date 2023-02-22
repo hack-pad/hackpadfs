@@ -5,6 +5,7 @@ package indexeddb
 
 import (
 	"context"
+	"errors"
 	"path"
 	"time"
 
@@ -199,6 +200,8 @@ func getMode(fileRecord safejs.Value) (hackpadfs.FileMode, error) {
 
 const rootPath = "."
 
+var errAborted = idb.NewDOMException("AbortError")
+
 func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord) error {
 	var data blob.Blob
 	if record != nil && record.Mode().IsRegular() { // i.e. "should not delete" AND "is a regular file"
@@ -216,10 +219,14 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 	}
 	txn.Set(name, record, data)
 	ops, err := txn.Commit(ctx)
-	if err != nil {
-		return err
+	if err == nil || errors.Is(err, errAborted) {
+		for _, op := range ops {
+			if op.Err != nil {
+				return op.Err
+			}
+		}
 	}
-	return ops[0].Err
+	return err
 }
 
 func deleteRecord(infos, contents *idb.ObjectStore, name string) (*idb.AckRequest, error) {
@@ -309,7 +316,8 @@ func requireParentDirectoryExists(ctx context.Context, infos *idb.ObjectStore, n
 	}
 	listenErr := req.ListenSuccess(ctx, func() {
 		result, err := req.Result()
-		if err != nil {
+		if err != nil || result.IsUndefined() {
+			parentReq.notExists = result.IsUndefined()
 			if txn, err := infos.Transaction(); err == nil {
 				_ = txn.Abort()
 			}
