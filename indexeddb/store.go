@@ -40,11 +40,22 @@ func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, erro
 	}
 	txn.Get(path)
 	ops, err := txn.Commit(ctx)
+	err = getFirstCommitError(ops, err)
 	if err != nil {
 		return nil, err
 	}
-	op := ops[0]
-	return op.Record, op.Err
+	return ops[0].Record, nil
+}
+
+func getFirstCommitError(ops []keyvalue.OpResult, err error) error {
+	if err == nil || errors.Is(err, errAborted) {
+		for _, op := range ops {
+			if op.Err != nil {
+				return op.Err
+			}
+		}
+	}
+	return err
 }
 
 func (s *store) getFile(files *idb.ObjectStore, path string) (*getFileRequest, error) {
@@ -219,14 +230,7 @@ func (s *store) Set(ctx context.Context, name string, record keyvalue.FileRecord
 	}
 	txn.Set(name, record, data)
 	ops, err := txn.Commit(ctx)
-	if err == nil || errors.Is(err, errAborted) {
-		for _, op := range ops {
-			if op.Err != nil {
-				return op.Err
-			}
-		}
-	}
-	return err
+	return getFirstCommitError(ops, err)
 }
 
 func deleteRecord(infos, contents *idb.ObjectStore, name string) (*idb.AckRequest, error) {
