@@ -8,6 +8,7 @@ import (
 	"go/build/constraint"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,18 +22,20 @@ var (
 	}
 	yesWasm = []string{
 		"indexeddb/*",
-		"internal/exception/*",
 	}
 )
 
-func shouldBeWasm(path string) (isWasm, skip bool) {
+func shouldBeWasm(filePath string) (isWasm, skip bool) {
+	if path.Ext(filePath) != ".go" {
+		return false, true
+	}
 	for _, glob := range yesWasm {
-		if match, _ := filepath.Match(glob, path); match {
+		if match, _ := filepath.Match(glob, filePath); match {
 			return true, false
 		}
 	}
 	for _, glob := range noWasm {
-		if match, _ := filepath.Match(glob, path); match {
+		if match, _ := filepath.Match(glob, filePath); match {
 			return false, false
 		}
 	}

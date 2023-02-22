@@ -21,9 +21,12 @@ func Error(tb testing.TB, err error) bool {
 }
 
 // NoError asserts err is nil
-func NoError(tb testing.TB, err error) bool {
+func NoError(tb testing.TB, err error, args ...interface{}) bool {
 	tb.Helper()
 	if err != nil {
+		if len(args) > 0 {
+			tb.Error(args...)
+		}
 		tb.Errorf("Unexpected error: %+v", err)
 		return false
 	}
@@ -51,9 +54,12 @@ func NotZero(tb testing.TB, value interface{}) bool {
 }
 
 // Equal asserts actual is equal to expected
-func Equal(tb testing.TB, expected, actual interface{}) bool {
+func Equal(tb testing.TB, expected, actual interface{}, args ...interface{}) bool {
 	tb.Helper()
 	if !reflect.DeepEqual(expected, actual) {
+		if len(args) > 0 {
+			tb.Error(args...)
+		}
 		tb.Errorf("%+v != %+v\nExpected: %#v\nActual:   %#v", expected, actual, expected, actual)
 		return false
 	}
@@ -61,9 +67,12 @@ func Equal(tb testing.TB, expected, actual interface{}) bool {
 }
 
 // NotEqual asserts actual is not equal to expected
-func NotEqual(tb testing.TB, expected, actual interface{}) bool {
+func NotEqual(tb testing.TB, expected, actual interface{}, args ...interface{}) bool {
 	tb.Helper()
 	if reflect.DeepEqual(expected, actual) {
+		if len(args) > 0 {
+			tb.Error(args...)
+		}
 		tb.Errorf("Should not be equal: %+v\nExpected: %#v\nActual:    %#v", actual, expected, actual)
 		return false
 	}
@@ -244,6 +253,6 @@ func ErrorIs(tb testing.TB, target, err error) bool {
 	if errors.Is(err, target) {
 		return true
 	}
-	tb.Errorf("Error must match target:\nExpected: %s\nActual:   %s", target, err)
+	tb.Errorf("Error must match target:\nExpected: %v\nActual:   %v", target, err)
 	return false
 }

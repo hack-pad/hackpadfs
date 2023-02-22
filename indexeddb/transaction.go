@@ -40,8 +40,11 @@ func (t *transaction) setResult(op keyvalue.OpID, result keyvalue.OpResult) {
 func (t *transaction) setPendingResult(op keyvalue.OpID, req *getFileRequest) {
 	t.resultsMu.Lock()
 	t.pendingResults = append(t.pendingResults, func() {
-		record, err := req.Result()
-		t.setResult(op, keyvalue.OpResult{Op: op, Record: record, Err: err})
+		result := keyvalue.OpResult{Op: op}
+		if req != nil {
+			result.Record, result.Err = req.Result()
+		}
+		t.setResult(op, result)
 	})
 	t.resultsMu.Unlock()
 }
@@ -127,12 +130,17 @@ func (t *transaction) set(op keyvalue.OpID, name string, record keyvalue.FileRec
 	if err != nil {
 		return nil, err
 	}
+	t.setResult(op, keyvalue.OpResult{Op: op}) // Ensure an op is recorded. A later result can overwrite it.
 
 	if record == nil {
 		if name == rootPath {
 			return nil, hackpadfs.ErrNotImplemented // cannot delete root dir
 		}
-		return nil, deleteRecord(infos, contents, name)
+		req, err := deleteRecord(infos, contents, name)
+		if err != nil {
+			return nil, err
+		}
+		return req.Request, nil
 	}
 
 	if data != nil {
