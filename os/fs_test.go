@@ -31,7 +31,7 @@ func TestFSTest(t *testing.T) {
 				if !assert.NoError(tb, err) {
 					tb.FailNow()
 				}
-				fs = subvFS.(*FS)
+				fs = subvFS
 				dir = dir[len(volumeName)+1:]
 			} else {
 				dir = strings.TrimPrefix(dir, "/")
@@ -40,7 +40,7 @@ func TestFSTest(t *testing.T) {
 			if !assert.NoError(tb, err) {
 				tb.FailNow()
 			}
-			return subFS.(*FS)
+			return subFS
 		},
 	}
 	var skipFacets []fstest.Facets
