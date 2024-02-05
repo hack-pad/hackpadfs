@@ -32,7 +32,7 @@ func NewFS() *FS {
 
 // SubVolume is like Sub, but only sets the volume name (i.e. for Windows).
 // Calling SubVolume again on the returned FS results in an error.
-func (fs *FS) SubVolume(volumeName string) (hackpadfs.FS, error) {
+func (fs *FS) SubVolume(volumeName string) (*FS, error) {
 	if fs.root != "" {
 		return nil, &hackpadfs.PathError{Op: "subvolume", Path: volumeName, Err: errors.New("subvolume not supported on a SubFS")}
 	}
@@ -48,7 +48,7 @@ func (fs *FS) SubVolume(volumeName string) (hackpadfs.FS, error) {
 }
 
 // Sub implements hackpadfs.SubFS
-func (fs *FS) Sub(dir string) (hackpadfs.FS, error) {
+func (fs *FS) Sub(dir string) (*FS, error) {
 	if !hackpadfs.ValidPath(dir) {
 		return nil, &hackpadfs.PathError{Op: "sub", Path: dir, Err: hackpadfs.ErrInvalid}
 	}
