@@ -53,7 +53,7 @@ type writeOnlyFile struct {
 	file *file
 }
 
-func (w *writeOnlyFile) Read(p []byte) (n int, err error) {
+func (w *writeOnlyFile) Read(_ []byte) (n int, err error) {
 	// Read is required by hackpadfs.File
 	return 0, &hackpadfs.PathError{Op: "read", Path: w.file.path, Err: hackpadfs.ErrNotImplemented}
 }

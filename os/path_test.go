@@ -238,7 +238,7 @@ func TestFromOSPath(t *testing.T) {
 			if tc.goos == goosWindows {
 				sep = '\\'
 			}
-			getVolumeName := func(p string) string { return tc.osPathVolumeName }
+			getVolumeName := func(_ string) string { return tc.osPathVolumeName }
 			path, err := fs.fromOSPath(tc.goos, sep, getVolumeName, "test", tc.osPath)
 			if tc.expectErr != "" {
 				if assert.Error(t, err) {

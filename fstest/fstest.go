@@ -96,7 +96,7 @@ func setupOptions(options *FSOptions) error {
 		})
 	}
 	if options.ShouldSkip == nil {
-		options.ShouldSkip = func(facets Facets) bool {
+		options.ShouldSkip = func(_ Facets) bool {
 			return false
 		}
 	}
@@ -121,7 +121,7 @@ func (o FSOptions) tbRun(tb testing.TB, name string, subtest func(tb testing.TB)
 	}
 }
 
-func (o FSOptions) tbRunInner(tb testing.TB, name string, subtest func(tb testing.TB)) {
+func (o FSOptions) tbRunInner(tb testing.TB, _ string, subtest func(tb testing.TB)) {
 	tb.Helper()
 	facets := Facets{
 		Name: tb.Name(),

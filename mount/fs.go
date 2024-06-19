@@ -135,7 +135,7 @@ type Point struct {
 // MountPoints returns a slice of mount points every mounted file system.
 func (fs *FS) MountPoints() []Point {
 	var points []Point
-	fs.mounts.Range(func(key, value interface{}) bool {
+	fs.mounts.Range(func(key, _ interface{}) bool {
 		path := key.(string)
 		points = append(points, Point{path})
 		return true

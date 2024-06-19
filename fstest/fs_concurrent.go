@@ -34,7 +34,7 @@ func TestConcurrentCreate(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
-		concurrentTasks(0, func(i int) {
+		concurrentTasks(0, func(_ int) {
 			f, err := hackpadfs.Create(fs, "foo")
 			skipNotImplemented(tb, err)
 			if assert.NoError(tb, err) {
@@ -60,7 +60,7 @@ func TestConcurrentOpenFileCreate(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
-		concurrentTasks(0, func(i int) {
+		concurrentTasks(0, func(_ int) {
 			f, err := hackpadfs.OpenFile(fs, "foo", hackpadfs.FlagReadWrite|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, 0666)
 			skipNotImplemented(tb, err)
 			if assert.NoError(tb, err) {
@@ -90,7 +90,7 @@ func TestConcurrentRemove(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, f.Close())
 		}
 		fs := commit()
-		concurrentTasks(0, func(i int) {
+		concurrentTasks(0, func(_ int) {
 			err := hackpadfs.Remove(fs, "foo")
 			skipNotImplemented(tb, err)
 			assert.Equal(tb, true, err == nil || errors.Is(err, hackpadfs.ErrNotExist))
@@ -119,7 +119,7 @@ func TestConcurrentMkdir(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
-		concurrentTasks(0, func(i int) {
+		concurrentTasks(0, func(_ int) {
 			err := hackpadfs.Mkdir(fs, "foo", 0777)
 			skipNotImplemented(tb, err)
 			assert.Equal(tb, true, err == nil || errors.Is(err, hackpadfs.ErrExist))
@@ -141,7 +141,7 @@ func TestConcurrentMkdirAll(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		_, commit := o.Setup.FS(tb)
 		fs := commit()
-		concurrentTasks(0, func(i int) {
+		concurrentTasks(0, func(_ int) {
 			err := hackpadfs.MkdirAll(fs, "foo", 0777)
 			skipNotImplemented(tb, err)
 			assert.NoError(tb, err)

@@ -330,7 +330,7 @@ func (fs *FS) Chmod(name string, mode hackpadfs.FileMode) error {
 }
 
 // Chtimes implements hackpadfs.ChtimesFS
-func (fs *FS) Chtimes(name string, atime time.Time, mtime time.Time) error {
+func (fs *FS) Chtimes(name string, _ time.Time, mtime time.Time) error {
 	file, err := fs.getFile(name)
 	if err != nil {
 		return fs.wrapperErr("chtimes", name, err)

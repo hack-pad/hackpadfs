@@ -12,7 +12,7 @@ type dir struct {
 	offset int
 }
 
-func (d *dir) Read(p []byte) (n int, err error) {
+func (d *dir) Read(_ []byte) (n int, err error) {
 	return 0, &hackpadfs.PathError{Op: "read", Path: d.name, Err: hackpadfs.ErrIsDir}
 }
 

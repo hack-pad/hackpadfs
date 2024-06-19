@@ -63,7 +63,7 @@ func (f fileRecord) ReadDirNames() ([]string, error) {
 	return names, nil
 }
 
-func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, error) {
+func (s *store) Get(_ context.Context, path string) (keyvalue.FileRecord, error) {
 	value, ok := s.records.Load(path)
 	if !ok {
 		return nil, hackpadfs.ErrNotExist
@@ -72,7 +72,7 @@ func (s *store) Get(ctx context.Context, path string) (keyvalue.FileRecord, erro
 	return record, nil
 }
 
-func (s *store) Set(ctx context.Context, path string, src keyvalue.FileRecord) error {
+func (s *store) Set(_ context.Context, path string, src keyvalue.FileRecord) error {
 	var contents blob.Blob
 	if src != nil {
 		var err error
@@ -84,7 +84,7 @@ func (s *store) Set(ctx context.Context, path string, src keyvalue.FileRecord) e
 	return s.set(path, src, contents)
 }
 
-func (s *store) set(path string, src keyvalue.FileRecord, contents blob.Blob) error {
+func (s *store) set(path string, src keyvalue.FileRecord, _ blob.Blob) error {
 	if src == nil {
 		s.records.Delete(path)
 	} else {
@@ -112,7 +112,7 @@ type transaction struct {
 	results []keyvalue.OpResult
 }
 
-func (s *store) Transaction(options keyvalue.TransactionOptions) (keyvalue.Transaction, error) {
+func (s *store) Transaction(_ keyvalue.TransactionOptions) (keyvalue.Transaction, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	txn := &transaction{
 		ctx:   ctx,
@@ -136,7 +136,7 @@ func (t *transaction) prepOp() (keyvalue.OpID, error) {
 }
 
 func (t *transaction) Get(path string) keyvalue.OpID {
-	return t.GetHandler(path, keyvalue.OpHandlerFunc(func(txn keyvalue.Transaction, result keyvalue.OpResult) error {
+	return t.GetHandler(path, keyvalue.OpHandlerFunc(func(_ keyvalue.Transaction, _ keyvalue.OpResult) error {
 		return nil
 	}))
 }
@@ -158,7 +158,7 @@ func (t *transaction) GetHandler(path string, handler keyvalue.OpHandler) keyval
 }
 
 func (t *transaction) Set(path string, src keyvalue.FileRecord, contents blob.Blob) keyvalue.OpID {
-	return t.SetHandler(path, src, contents, keyvalue.OpHandlerFunc(func(txn keyvalue.Transaction, result keyvalue.OpResult) error {
+	return t.SetHandler(path, src, contents, keyvalue.OpHandlerFunc(func(_ keyvalue.Transaction, _ keyvalue.OpResult) error {
 		return nil
 	}))
 }
@@ -179,7 +179,7 @@ func (t *transaction) SetHandler(path string, src keyvalue.FileRecord, contents 
 	return op
 }
 
-func (t *transaction) Commit(ctx context.Context) ([]keyvalue.OpResult, error) {
+func (t *transaction) Commit(_ context.Context) ([]keyvalue.OpResult, error) {
 	t.abort()
 	t.store.mu.Unlock()
 	return t.results, nil

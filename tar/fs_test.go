@@ -96,7 +96,7 @@ func TestNewTarFromFS(t *testing.T) {
 	}{
 		{
 			description: "empty",
-			do:          func(t *testing.T, fs hackpadfs.FS) {},
+			do:          func(_ *testing.T, _ hackpadfs.FS) {},
 		},
 		{
 			description: "one file",

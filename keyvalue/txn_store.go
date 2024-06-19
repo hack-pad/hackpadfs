@@ -117,7 +117,7 @@ func abortErr(ctx, extraCtx context.Context) error {
 }
 
 func (u *unsafeSerialTransaction) Get(path string) OpID {
-	return u.GetHandler(path, OpHandlerFunc(func(txn Transaction, result OpResult) error {
+	return u.GetHandler(path, OpHandlerFunc(func(_ Transaction, _ OpResult) error {
 		return nil
 	}))
 }
@@ -140,12 +140,12 @@ func (u *unsafeSerialTransaction) GetHandler(path string, handler OpHandler) OpI
 }
 
 func (u *unsafeSerialTransaction) Set(path string, src FileRecord, contents blob.Blob) OpID {
-	return u.SetHandler(path, src, contents, OpHandlerFunc(func(txn Transaction, result OpResult) error {
+	return u.SetHandler(path, src, contents, OpHandlerFunc(func(_ Transaction, _ OpResult) error {
 		return nil
 	}))
 }
 
-func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, contents blob.Blob, handler OpHandler) OpID {
+func (u *unsafeSerialTransaction) SetHandler(path string, src FileRecord, _ blob.Blob, handler OpHandler) OpID {
 	op := u.newOp()
 	if err := abortErr(u.ctx, nil); err != nil {
 		u.setResult(op, OpResult{Op: op, Err: err})
