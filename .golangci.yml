@@ -23,6 +23,11 @@ issues:
     # Disable documenting fstest Test functions
     - exported function Test\S* should have comment or be unexported
     - comment on exported function Test\S* should be of the form
+  exclude-rules:
+    - path: '(.+)_test\.go|^fstest/'  # Disable some lint failures on test files and packages.
+      linters:
+        - govet
+      text: 'fieldalignment: struct with .* bytes could be .*'  # Govet's fieldalignment memory size check on table-driven test case types requires field reordering to improve performance, which can lower readability without a meaningful impact to non-test code.
   include:
     # Re-enable default excluded rules
     - EXC0001

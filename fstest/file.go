@@ -87,7 +87,6 @@ func TestFileRead(tb testing.TB, o FSOptions) {
 	})
 }
 
-//nolint:govet
 func TestFileReadAt(tb testing.TB, o FSOptions) {
 	const fileContents = "hello world"
 	setupFS, commit := o.Setup.FS(tb)
@@ -654,7 +653,6 @@ func TestFileSync(tb testing.TB, o FSOptions) {
 	assert.NoError(tb, file.Close())
 }
 
-//nolint:govet
 func TestFileTruncate(tb testing.TB, o FSOptions) {
 	const fileContents = "hello world"
 	for _, tc := range []struct {
