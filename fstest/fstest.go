@@ -11,6 +11,13 @@ import (
 
 // FSOptions contains required and optional settings for running fstest against your FS.
 type FSOptions struct {
+	// Name of this test run. Required.
+	Name string
+	// TestFS sets up the current sub-test and returns an FS. Required if SetupFS is not set.
+	// Must support running in parallel with other tests. For a global FS like 'osfs', return a sub-FS rooted in a temporary directory for each call to TestFS.
+	// Cleanup should be run via tb.Cleanup() tasks.
+	TestFS func(tb testing.TB) SetupFS
+
 	// Setup returns an FS that can prepare files and a commit function. Required of TestFS is not set.
 	// When commit is called, SetupFS's changes must be copied into a new test FS (like TestFS does) and return it.
 	//
@@ -18,10 +25,11 @@ type FSOptions struct {
 	// However, in more niche file systems like a read-only FS, it is necessary to commit files to a normal FS, then copy them into a read-only store.
 	Setup TestSetup
 
-	// TestFS sets up the current sub-test and returns an FS. Required if SetupFS is not set.
-	// Must support running in parallel with other tests. For a global FS like 'osfs', return a sub-FS rooted in a temporary directory for each call to TestFS.
-	// Cleanup should be run via tb.Cleanup() tasks.
-	TestFS func(tb testing.TB) SetupFS
+	// Contraints limits tests to a reduced set of assertions. Avoid setting any of these options.
+	// For example, setting FileModeMask limits FileMode assertions on a file's Stat() result.
+	//
+	// NOTE: This MUST NOT be used lightly. Any custom constraints severely impairs the quality of a standardized file system.
+	Constraints Constraints
 
 	// ShouldSkip determines if the current test with features defined by 'facets' should be skipped.
 	// ShouldSkip() is intended for handling undefined behavior in existing systems outside one's control.
@@ -30,15 +38,6 @@ type FSOptions struct {
 	ShouldSkip func(facets Facets) bool
 
 	skippedTests *sync.Map // type: Facets -> struct{}
-
-	// Name of this test run. Required.
-	Name string
-
-	// Contraints limits tests to a reduced set of assertions. Avoid setting any of these options.
-	// For example, setting FileModeMask limits FileMode assertions on a file's Stat() result.
-	//
-	// NOTE: This MUST NOT be used lightly. Any custom constraints severely impairs the quality of a standardized file system.
-	Constraints Constraints
 }
 
 // SetupFS is an FS that supports the baseline interfaces for creating files/directories and changing their metadata.
