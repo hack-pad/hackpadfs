@@ -48,7 +48,7 @@ test: test-deps
 	fi
 	{ echo 'mode: atomic'; cat *-cover.out | grep -v '^mode:'; } > cover.out && rm *-cover.out
 	go tool cover -func cover.out | grep total:
-	@if [[ "$$CI" == true && $$(uname -s) == Linux && "$$(go version)" == *go"$$COVERAGE_VERSION"* ]]; then \
+	@if [[ "$$CI" == true && $$(uname -sm) == 'Linux x86_64' && "$$(go version)" == *go"$$COVERAGE_VERSION"* ]]; then \
 		set -ex; \
 		goveralls -coverprofile=cover.out -service=github || true; \
 	fi
