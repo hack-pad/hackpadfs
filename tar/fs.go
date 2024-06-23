@@ -191,7 +191,7 @@ func (fs *ReaderFS) readProcessFile(
 	info := header.FileInfo()
 
 	dir := path.Dir(p)
-	err := mkdirAll(dir, 0700)
+	err := mkdirAll(dir, 0o700)
 	if err != nil {
 		return fserrors.WithMessage(err, "prepping base dir")
 	}

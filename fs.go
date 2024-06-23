@@ -170,7 +170,7 @@ func Create(fs FS, name string) (File, error) {
 	if fs, ok := fs.(CreateFS); ok {
 		return fs.Create(name)
 	}
-	return OpenFile(fs, name, FlagReadWrite|FlagCreate|FlagTruncate, 0666)
+	return OpenFile(fs, name, FlagReadWrite|FlagCreate|FlagTruncate, 0o666)
 }
 
 // Mkdir creates a directory. Fails with a not implemented error if it's not a MkdirFS.

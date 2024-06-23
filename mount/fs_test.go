@@ -40,7 +40,7 @@ func TestFS(t *testing.T) {
 		TestFS: func(tb testing.TB) fstest.SetupFS {
 			memRoot, err := mem.NewFS()
 			requireNoError(tb, err)
-			requireNoError(tb, memRoot.Mkdir("unused", 0666))
+			requireNoError(tb, memRoot.Mkdir("unused", 0o666))
 			memUnused, err := mem.NewFS()
 			requireNoError(tb, err)
 			fs, err := mount.NewFS(memRoot)
@@ -105,7 +105,7 @@ func TestAddMount(t *testing.T) {
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
-		assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0700))
+		assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0o700))
 		err = fs.AddMount("foo", memFoo)
 		assert.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestAddMount(t *testing.T) {
 		fs := newFS(t)
 		memFoo, err := mem.NewFS()
 		assert.NoError(t, err)
-		assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0700))
+		assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0o700))
 
 		var wg sync.WaitGroup
 		const maxAttempts = 3
@@ -155,7 +155,7 @@ func TestMount(t *testing.T) {
 	assert.NoError(t, err)
 	fs, err := mount.NewFS(memRoot)
 	assert.NoError(t, err)
-	assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0700))
+	assert.NoError(t, hackpadfs.Mkdir(fs, "foo", 0o700))
 
 	{
 		memFoo, err := mem.NewFS()
@@ -163,10 +163,10 @@ func TestMount(t *testing.T) {
 		assert.NoError(t, fs.AddMount("foo", memFoo))
 	}
 
-	assert.NoError(t, hackpadfs.Mkdir(fs, "foo/bar", 0700))
+	assert.NoError(t, hackpadfs.Mkdir(fs, "foo/bar", 0o700))
 	info, err := hackpadfs.Stat(fs, "foo/bar")
 	if assert.NoError(t, err) {
 		assert.Equal(t, true, info.IsDir())
-		assert.Equal(t, hackpadfs.FileMode(hackpadfs.ModeDir|0700), info.Mode())
+		assert.Equal(t, hackpadfs.FileMode(hackpadfs.ModeDir|0o700), info.Mode())
 	}
 }

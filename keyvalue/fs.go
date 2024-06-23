@@ -22,7 +22,7 @@ func NewFS(store Store) (*FS, error) {
 	fs := &FS{
 		store: newFSTransactioner(store),
 	}
-	err := fs.Mkdir(".", 0666)
+	err := fs.Mkdir(".", 0o666)
 	return fs, ignoreErrExist(err)
 }
 

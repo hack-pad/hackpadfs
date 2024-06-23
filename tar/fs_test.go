@@ -111,7 +111,7 @@ func TestNewTarFromFS(t *testing.T) {
 		{
 			description: "one dir",
 			do: func(t *testing.T, fs hackpadfs.FS) {
-				err := hackpadfs.Mkdir(fs, "foo", 0700)
+				err := hackpadfs.Mkdir(fs, "foo", 0o700)
 				if !assert.NoError(t, err) {
 					t.FailNow()
 				}
@@ -120,7 +120,7 @@ func TestNewTarFromFS(t *testing.T) {
 		{
 			description: "dir with one nested file",
 			do: func(t *testing.T, fs hackpadfs.FS) {
-				err := hackpadfs.Mkdir(fs, "foo", 0700)
+				err := hackpadfs.Mkdir(fs, "foo", 0o700)
 				if !assert.NoError(t, err) {
 					t.FailNow()
 				}

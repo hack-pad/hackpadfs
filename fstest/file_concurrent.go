@@ -11,7 +11,7 @@ import (
 func TestConcurrentFileRead(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "same file path", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
-		assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte("hello world"), 0666))
+		assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, "foo", []byte("hello world"), 0o666))
 		fs := commit()
 		concurrentTasks(0, func(_ int) {
 			f, err := fs.Open("foo")
@@ -30,7 +30,7 @@ func TestConcurrentFileRead(tb testing.TB, o FSOptions) {
 		setupFS, commit := o.Setup.FS(tb)
 		const fileCount = 10
 		for i := 0; i < fileCount; i++ {
-			assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, fmt.Sprintf("foo-%d", i), []byte("hello world"), 0666))
+			assert.NoError(tb, hackpadfs.WriteFullFile(setupFS, fmt.Sprintf("foo-%d", i), []byte("hello world"), 0o666))
 		}
 		fs := commit()
 		concurrentTasks(fileCount, func(i int) {
@@ -102,7 +102,7 @@ func TestConcurrentFileStat(tb testing.TB, o FSOptions) {
 			assert.NoError(tb, err)
 			assert.Equal(tb, quickInfo{
 				Name: "foo",
-				Mode: 0666,
+				Mode: 0o666,
 			}, asQuickInfo(info))
 			assert.NoError(tb, f.Close())
 		}

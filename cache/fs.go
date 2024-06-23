@@ -89,7 +89,7 @@ func (fs *ReadOnlyFS) Open(name string) (hackpadfs.File, error) {
 
 func (fs *ReadOnlyFS) copyFile(name string, f hackpadfs.File, info hackpadfs.FileInfo) error {
 	parentName := path.Dir(name)
-	if err := hackpadfs.MkdirAll(fs.cacheFS, parentName, 0700); err != nil {
+	if err := hackpadfs.MkdirAll(fs.cacheFS, parentName, 0o700); err != nil {
 		return &hackpadfs.PathError{Op: "open", Path: parentName, Err: err}
 	}
 	destFile, err := fs.cacheFS.OpenFile(name, hackpadfs.FlagWriteOnly|hackpadfs.FlagCreate|hackpadfs.FlagTruncate, info.Mode())

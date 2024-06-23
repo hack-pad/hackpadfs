@@ -31,7 +31,7 @@ func setupSubFS(tb testing.TB) (fstest.SetupFS, func() hackpadfs.FS) {
 	requireNoError(tb, err)
 	return memRoot, func() hackpadfs.FS {
 		const subDir = "subfs-subdir"
-		requireNoError(tb, memRoot.Mkdir(subDir, 0700))
+		requireNoError(tb, memRoot.Mkdir(subDir, 0o700))
 		dirEntries, err := hackpadfs.ReadDir(memRoot, ".")
 		requireNoError(tb, err)
 		for _, entry := range dirEntries {

@@ -30,7 +30,7 @@ func testFile(contents string) (keyvalue.FileRecord, blob.Blob) {
 	return keyvalue.NewBaseFileRecord(
 		int64(len(data)),
 		nowTruncated(),
-		0600,
+		0o600,
 		nil,
 		func() (blob.Blob, error) {
 			return blob.NewBytes(data), nil

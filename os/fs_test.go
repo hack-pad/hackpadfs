@@ -45,7 +45,7 @@ func TestFSTest(t *testing.T) {
 	}
 	var skipFacets []fstest.Facets
 	if runtime.GOOS == goosWindows {
-		options.Constraints.FileModeMask = 0200 // Windows does not support the typical file permission bits. Only the "owner writable" bit is supported.
+		options.Constraints.FileModeMask = 0o200 // Windows does not support the typical file permission bits. Only the "owner writable" bit is supported.
 		skipFacets = []fstest.Facets{
 			{Name: "TestFSTest/osfs.FS_File/file.Seek/seek_unknown_start"},                 // Windows ignores invalid 'whence' values in Seek() calls.
 			{Name: "TestFSTest/osfs.FS_FS/fs.Rename/same_directory"},                       // Windows does not return an error for renaming a directory to itself.

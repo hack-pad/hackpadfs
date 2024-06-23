@@ -94,7 +94,7 @@ func (fs *FS) Clear(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return fs.Mkdir(".", 0666)
+	return fs.Mkdir(".", 0o666)
 }
 
 // Open implements hackpadfs.FS

@@ -57,7 +57,7 @@ func TestMkdirAll(t *testing.T) {
 	t.Run("invalid path", func(t *testing.T) {
 		t.Parallel()
 		fs := makeSimplerFS(t)
-		err := hackpadfs.MkdirAll(fs, "foo/../bar", 0700)
+		err := hackpadfs.MkdirAll(fs, "foo/../bar", 0o700)
 		if assert.IsType(t, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(t, "mkdirall", err.Op)
@@ -69,15 +69,15 @@ func TestMkdirAll(t *testing.T) {
 	t.Run("make all", func(t *testing.T) {
 		t.Parallel()
 		fs := makeSimplerFS(t)
-		err := hackpadfs.MkdirAll(fs, "foo/bar", 0700)
+		err := hackpadfs.MkdirAll(fs, "foo/bar", 0o700)
 		assert.NoError(t, err)
 	})
 
 	t.Run("make once", func(t *testing.T) {
 		t.Parallel()
 		fs := makeSimplerFS(t)
-		assert.NoError(t, fs.simpler.Mkdir("foo", 0600))
-		err := hackpadfs.MkdirAll(fs, "foo/bar", 0700)
+		assert.NoError(t, fs.simpler.Mkdir("foo", 0o600))
+		err := hackpadfs.MkdirAll(fs, "foo/bar", 0o700)
 		assert.NoError(t, err)
 	})
 
@@ -87,7 +87,7 @@ func TestMkdirAll(t *testing.T) {
 		f, err := hackpadfs.Create(fs.simpler, "foo")
 		requireNoError(t, err)
 		requireNoError(t, f.Close())
-		err = hackpadfs.MkdirAll(fs, "foo/bar", 0700)
+		err = hackpadfs.MkdirAll(fs, "foo/bar", 0o700)
 		if assert.IsType(t, &hackpadfs.PathError{}, err) {
 			err := err.(*hackpadfs.PathError)
 			assert.Equal(t, "mkdir", err.Op)
@@ -112,7 +112,7 @@ func TestWriteFullFile(t *testing.T) {
 	t.Parallel()
 
 	fs := makeSimplerFS(t)
-	err := hackpadfs.WriteFullFile(fs, "foo", []byte("bar"), 0756)
+	err := hackpadfs.WriteFullFile(fs, "foo", []byte("bar"), 0o756)
 	assert.NoError(t, err)
 	contents, err := hackpadfs.ReadFile(fs, "foo")
 	assert.NoError(t, err)
@@ -123,8 +123,8 @@ func TestRemoveAll(t *testing.T) {
 	t.Parallel()
 
 	fs := makeSimplerFS(t)
-	assert.NoError(t, hackpadfs.MkdirAll(fs, "foo/bar", 0700))
-	err := hackpadfs.WriteFullFile(fs, "foo/bar/baz", nil, 0700)
+	assert.NoError(t, hackpadfs.MkdirAll(fs, "foo/bar", 0o700))
+	err := hackpadfs.WriteFullFile(fs, "foo/bar/baz", nil, 0o700)
 	assert.NoError(t, err)
 
 	err = hackpadfs.RemoveAll(fs, "foo")
