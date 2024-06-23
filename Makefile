@@ -1,12 +1,13 @@
-BROWSERTEST_VERSION = v0.7
+BROWSERTEST_VERSION = v0.8
 LINT_VERSION = 1.59.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
 SHELL = bash
 
+current_platform := $(shell go env GOOS)/$(shell go env GOARCH)
 # Only use the race detector on supported architectures.
 # Go's supported platforms pulled from 'go help build' under '-race'.
 race_platforms := linux/amd64 freebsd/amd64 darwin/amd64 darwin/arm64 windows/amd64 linux/ppc64le linux/arm64
-RACE_ENABLED = $(if $(findstring $(shell go env GOOS)/$(shell go env GOARCH),${race_platforms}),true,false)
+RACE_ENABLED = $(if $(findstring ${current_platform},${race_platforms}),true,false)
 
 .PHONY: all
 all: lint test
@@ -31,7 +32,7 @@ lint: lint-deps
 test-deps:
 	@if [ ! -f "${GO_BIN}/go_js_wasm_exec" ]; then \
 		set -ex; \
-		go install github.com/agnivade/wasmbrowsertest@${BROWSERTEST_VERSION}; \
+		GOOS= GOARCH= go install github.com/agnivade/wasmbrowsertest@${BROWSERTEST_VERSION}; \
 		ln -s "${GO_BIN}/wasmbrowsertest" "${GO_BIN}/go_js_wasm_exec"; \
 	fi
 	@go install github.com/mattn/goveralls@v0.0.9
