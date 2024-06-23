@@ -21,9 +21,9 @@ var (
 
 // Bytes is a Blob that wraps a byte slice.
 type Bytes struct {
-	mu     *sync.Mutex // mutex can be shared when the byte slice is shared
 	bytes  []byte
 	length int64
+	mu     *sync.Mutex // mutex can be shared when the byte slice is shared
 }
 
 // NewBytes returns a Blob that wraps the given byte slice.
