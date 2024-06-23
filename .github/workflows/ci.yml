@@ -44,7 +44,6 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
-        #architecture: ${{ matrix.goarch }}
     - name: Test
       run: make test
       env:
