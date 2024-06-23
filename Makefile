@@ -2,7 +2,11 @@ BROWSERTEST_VERSION = v0.7
 LINT_VERSION = 1.59.1
 GO_BIN = $(shell printf '%s/bin' "$$(go env GOPATH)")
 SHELL = bash
-ENABLE_RACE = true
+
+# Only use the race detector on supported architectures.
+# Go's supported platforms pulled from 'go help build' under '-race'.
+race_platforms := linux/amd64 freebsd/amd64 darwin/amd64 darwin/arm64 windows/amd64 linux/ppc64le linux/arm64
+RACE_ENABLED = $(if $(findstring $(shell go env GOOS)/$(shell go env GOARCH),${race_platforms}),true,false)
 
 .PHONY: all
 all: lint test
@@ -32,25 +36,14 @@ test-deps:
 	fi
 	@go install github.com/mattn/goveralls@v0.0.9
 
-# only use the race detector on supported architectures
-race_goarches := 'amd64' 'arm64'
-ifeq (,$(findstring '$(GOARCH)',$(race_goarches)))
-TEST_ARGS=
-export CGO_ENABLED=0
-else
-TEST_ARGS=-race
-# the race detector needs cgo (at least on Linux and Windows, and macOS until Go 1.20)
-export CGO_ENABLED=1
-endif
-
 .PHONY: test
 test: test-deps
 	go test .  # Run library-level checks first, for more helpful build tag failure messages.
-	go test $(TEST_ARGS) -coverprofile=native-cover.out ./...
+	go test -race=${RACE_ENABLED} -coverprofile=native-cover.out ./...
 	if [[ "$$CI" != true || $$(uname -s) == Linux ]]; then \
 		set -ex; \
 		GOOS=js GOARCH=wasm go test -coverprofile=js-cover.out -covermode=atomic ./...; \
-		cd examples && go test $(TEST_ARGS) ./...; \
+		cd examples && go test -race=${RACE_ENABLED} ./...; \
 	fi
 	{ echo 'mode: atomic'; cat *-cover.out | grep -v '^mode:'; } > cover.out && rm *-cover.out
 	go tool cover -func cover.out | grep total:
