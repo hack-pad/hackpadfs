@@ -284,7 +284,7 @@ func TestMkdir(tb testing.TB, o FSOptions) {
 	})
 }
 
-// MkdirAll creates a directory named path, along with any necessary parents, and returns nil, or else returns an error.
+// TestMkdirAll tests MkdirAll. MkdirAll creates a directory named path, along with any necessary parents, and returns nil, or else returns an error.
 // The permission bits perm (before umask) are used for all directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing and returns nil.
 func TestMkdirAll(tb testing.TB, o FSOptions) {
@@ -359,7 +359,7 @@ func TestMkdirAll(tb testing.TB, o FSOptions) {
 	})
 }
 
-// Open opens the named file for reading.
+// TestOpen tests Open. Open opens the named file for reading.
 // If successful, methods on the returned file can be used for reading; the associated file descriptor has mode O_RDONLY.
 // If there is an error, it will be of type *PathError.
 func TestOpen(tb testing.TB, o FSOptions) {
@@ -447,7 +447,7 @@ func testOpen(tb testing.TB, o FSOptions, openFn func(hackpadfs.FS, string) (hac
 	})
 }
 
-// OpenFile is the generalized open call; most users will use Open or Create instead.
+// TestOpenFile tests OpenFile. OpenFile is the generalized open call; most users will use Open or Create instead.
 // It opens the named file with specified flag (O_RDONLY etc.).
 // If the file does not exist, and the O_CREATE flag is passed, it is created with mode perm (before umask).
 // If successful, methods on the returned File can be used for I/O.
@@ -556,7 +556,7 @@ func TestOpenFile(tb testing.TB, o FSOptions) {
 	})
 }
 
-// Remove removes the named file or (empty) directory. If there is an error, it will be of type *PathError.
+// TestRemove tests Remove. Remove removes the named file or (empty) directory. If there is an error, it will be of type *PathError.
 func TestRemove(tb testing.TB, o FSOptions) {
 	o.tbRun(tb, "remove file", func(tb testing.TB) {
 		setupFS, commit := o.Setup.FS(tb)
@@ -618,7 +618,7 @@ func TestRemove(tb testing.TB, o FSOptions) {
 	})
 }
 
-// RemoveAll removes path and any children it contains.
+// TestRemoveAll tests RemoveAll. RemoveAll removes path and any children it contains.
 // It removes everything it can but returns the first error it encounters.
 // If the path does not exist, RemoveAll returns nil (no error).
 // If there is an error, it will be of type *PathError.
@@ -849,7 +849,7 @@ func TestRename(tb testing.TB, o FSOptions) {
 	})
 }
 
-// Stat returns a FileInfo describing the named file. If there is an error, it will be of type *PathError.
+// TestStat tests Stat. Stat returns a FileInfo describing the named file. If there is an error, it will be of type *PathError.
 func TestStat(tb testing.TB, o FSOptions) {
 	testStat(tb, o, func(tb testing.TB, fs hackpadfs.FS, path string) (hackpadfs.FileInfo, error) {
 		info, err := hackpadfs.Stat(fs, path)
@@ -942,7 +942,7 @@ func testStat(tb testing.TB, o FSOptions, stater func(testing.TB, hackpadfs.FS, 
 	})
 }
 
-// Chmod changes the mode of the named file to mode.
+// TestChmod tests Chmod. Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
 // If there is an error, it will be of type *PathError.
 //
@@ -999,7 +999,7 @@ func TestChmod(tb testing.TB, o FSOptions) {
 	})
 }
 
-// Chtimes changes the access and modification times of the named file, similar to the Unix utime() or utimes() functions.
+// TestChtimes tests Chtimes. Chtimes changes the access and modification times of the named file, similar to the Unix utime() or utimes() functions.
 //
 // The underlying filesystem may truncate or round the values to a less precise time unit. If there is an error, it will be of type *PathError.
 func TestChtimes(tb testing.TB, o FSOptions) {
